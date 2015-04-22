@@ -1,14 +1,15 @@
-# rollcage
+# Rollcage [![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage)
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure client for [Rollbar](http://rollbar.com)
 
-## Usage
+## Open-source TODO:
+- Write readme and installation instructions
+- Document API
+- Publish to clojars
+- Make badge public
+- Add junit support to `circle.yml`
 
-FIXME
 
 ## License
 
-Copyright © 2015 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html).
