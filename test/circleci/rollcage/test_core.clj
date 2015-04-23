@@ -44,7 +44,7 @@
           item (first (client/build-trace e)) ]
       (is (= "test" (-> item :exception :message)))
       (is (= "class java.lang.Exception" (-> item :exception :class)))
-      (is (.startsWith (-> item :frames last :method)  (-> *ns* ns-name name)))
+      (let [^String method (-> item :frames last :method)] (is (.startsWith method "circleci.rollcage")))
       ;; Depending on whether the test is run from repl or command line
       ;; the root filename changes.
       (is (#{"main.java" "Thread.java"} (-> item :frames first :filename)))))
