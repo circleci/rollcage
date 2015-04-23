@@ -1,4 +1,5 @@
-# Rollcage [![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage)
+# Rollcage
+[![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage) [![Clojars Project](http://clojars.org/circleci/rollcage/latest-version.svg)]
 
 A Clojure client for [Rollbar](http://rollbar.com)
 
