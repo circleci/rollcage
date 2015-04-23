@@ -1,12 +1,11 @@
-# Rollcage
-[![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage) [![Clojars Project](http://clojars.org/circleci/rollcage/latest-version.svg)]
+# Rollcage [![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage)
 
 A Clojure client for [Rollbar](http://rollbar.com)
 
 
 ## Usage
 
-Rollcage is available on Clojars. Add the following to your `project.clj`:
+Rollcage is available on [Clojars](https://clojars.org/circleci/rollcage). Add the following to your `project.clj`:
 
 ```Clojure
 [circleci/rollcage "0.1.0-SNAPSHOT"]
