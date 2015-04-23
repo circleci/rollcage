@@ -1,4 +1,4 @@
-(ns circleci.rollcage
+(ns circleci.rollcage.core
   (:require [clojure.string :as s]
             [cheshire.core :as json]
             [clj-http.client :refer (post)]
@@ -60,10 +60,9 @@
                  (conj result elem)))))))
 
 (defn make-rollbar
-  "Return a function that builds rollbars"
+  "Build a map that matched the Rollbar API"
   [os hostname code-version access-token environment file-root exception url params]
-  (let [trace (build-trace exception)
-        user nil] ;; TODO: Access a circle.model.user param here
+  (let [trace (build-trace exception)]
     {:access_token access-token
      :data {:environment environment
             :body {:trace_chain trace}
@@ -78,9 +77,7 @@
               :url url
               ;; TODO: Pass request parameters through to here
             }
-            :person {:id (:login user)
-                     :username (:name user)
-                     :email (:selected-email user)}
+            ;; TODO: add person here
             :server {:host hostname
                      :root file-root
                      :code_version code-version}}}))

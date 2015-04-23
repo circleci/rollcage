@@ -1,7 +1,7 @@
-(ns circleci.test-rollcage
+(ns circleci.rollcage.test-core
   (:require [bond.james :as bond]
             [clojure.test :refer :all]
-            [circleci.rollcage :as client]))
+            [circleci.rollcage.core :as client]))
 
 (deftest dropping-common-frames
   (are [expected x y] (= expected (client/drop-common-head x y))
@@ -44,7 +44,7 @@
           item (first (client/build-trace e)) ]
       (is (= "test" (-> item :exception :message)))
       (is (= "class java.lang.Exception" (-> item :exception :class)))
-      (is (.startsWith (-> item :frames last :method)  "circleci.test-rollcage"))
+      (is (.startsWith (-> item :frames last :method)  (-> *ns* ns-name name)))
       ;; Depending on whether the test is run from repl or command line
       ;; the root filename changes.
       (is (#{"main.java" "Thread.java"} (-> item :frames first :filename)))))
