@@ -1,4 +1,4 @@
-(defproject circleci/rollcage "0.1.0-SNAPSHOT"
+(defproject circleci/rollcage "0.1.0"
   :description "A Clojure client for Rollbar"
   :url "http://github.com/circleci/rollcage"
   :license {:name "Eclipse Public License"
