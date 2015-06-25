@@ -1,17 +1,32 @@
 (ns circleci.rollcage.test-core
+  (:use clojure.test)
   (:require [bond.james :as bond]
             [clojure.test :refer :all]
-            [circleci.rollcage.core :as client]))
+            [circleci.rollcage.core :as client]
+            [clojure.test.check.clojure-test :as ct :refer (defspec)]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]))
+
+(defn- ends-with?
+  "true if a ends with b"
+  [a b]
+  (let [tail (subvec (vec a) (- (count a) (count b)))]
+    (= tail (vec b))))
+
+(deftest ends-with-works?
+  (is (ends-with? "foobar" "bar"))
+  (is (not (ends-with? "foobaz" "bar"))))
+
+(defspec can-drop-common-heads 1000
+  (prop/for-all
+    [a (gen/list gen/int)
+     b (gen/list gen/int)]
+    (let [r (client/drop-common-head a b)]
+      (or (empty? a)
+          (empty? b)
+          (ends-with? b r)))))
 
 (deftest dropping-common-frames
-  (are [expected x y] (= expected (client/drop-common-head x y))
-       [] [] []
-       [4 5 6] [1 2 3] [1 2 3 4 5 6]
-       [] [1 2 3 4] []
-       [4 5 6] [] [4 5 6]
-       [6] [1] [6]
-       [] [1 2 3] [1 2 3]
-       [] [1 2 3 4 5] [1 2])
   (let [exception [{:exception {:class "OuterClass" :message "Outer"}
                     :frames [{:method "java.lang.Thread.run", :filename "Thread.java", :lineno 745}
                              {:method "java.util.concurrent.ThreadPoolExecutor$Worker.run", :filename "ThreadPoolExecutor.java", :lineno 617}
