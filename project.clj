@@ -9,4 +9,5 @@
                  [clj-http "1.1.0"]
                  [clj-stacktrace "0.2.8"]]
   :plugins [[lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
-  :profiles {:dev {:dependencies [[bond "0.2.5"]]}})
+  :profiles {:dev {:dependencies [[org.clojure/test.check "0.7.0"]
+                                  [bond "0.2.5"]]}})
