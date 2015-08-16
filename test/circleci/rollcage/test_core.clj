@@ -1,11 +1,15 @@
 (ns circleci.rollcage.test-core
   (:use clojure.test)
   (:require [bond.james :as bond]
+            [schema.test]
             [clojure.test :refer :all]
             [circleci.rollcage.core :as client]
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop]))
+            [clojure.test.check.properties :as prop])
+  (:import [java.util UUID]))
+
+(use-fixtures :once schema.test/validate-schemas)
 
 (defn- ends-with?
   "true if a ends with b"
@@ -89,3 +93,19 @@
                (-> item second :exception :message)))
         (is (= "class java.util.concurrent.ExecutionException"
                (-> item first :exception :class)))))))
+
+(deftest it-can-make-clients
+  (let [c (client/client "access-token" {})]
+    (is c)))
+
+(deftest it-can-make-items
+  (let [c (client/client "access-token" {})]
+    (client/make-rollbar c "error" (Exception.) nil nil) ) )
+
+(deftest it-can-send-items
+  (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
+        r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
+        e (Exception. "horse")
+        {err :err {uuid :uuid } :result} (client/warning r e) ]
+    (is (zero? err))
+    (is (UUID/fromString uuid))))
