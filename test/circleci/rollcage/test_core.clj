@@ -104,7 +104,7 @@
 
 (deftest it-can-send-items
   (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
-        r (client/client token)
+        r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
         e (Exception. "horse")
         {err :err {uuid :uuid } :result} (client/warning r e) ]
     (is (zero? err))
