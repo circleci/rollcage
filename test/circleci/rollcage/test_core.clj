@@ -95,8 +95,13 @@
                (-> item first :exception :class)))))))
 
 (deftest it-can-make-clients
-  (let [c (client/client "access-token" {})]
-    (is c)))
+  (let [c (client/client "access-token")]
+    (is (= "access-token" (:access-token c))))
+  (let [c (client/client "access-token" {:os "DOS"
+                                         :environment "alpha"})]
+    (is (= "access-token" (:access-token c)))
+    (is (= "alpha" (-> c :data :environment)))
+    (is (= "DOS" (-> c :data :platform)))))
 
 (deftest it-can-make-items
   (let [c (client/client "access-token" {})]

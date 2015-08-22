@@ -9,6 +9,7 @@
                  [clj-http "2.0.0"]
                  [prismatic/schema "0.4.3"]
                  [clj-stacktrace "0.2.8"]]
-  :plugins [[lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
+  :plugins [[lein-cloverage "1.0.6"]
+            [lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.7.0"]
                                   [bond "0.2.5"]]}})
