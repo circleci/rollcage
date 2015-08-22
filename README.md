@@ -15,16 +15,13 @@ You can send exceptions like this:
 
 ```Clojure
 user=> (require '[circleci.rollcage.core :as rollcage])
-nil
 
-user=> (rollcage/notify "Darwin"
-  #_=>                  "astrotrain"
-  #_=>                  "c3dc8492f1e423dcad3a6349e1497f839363b5be"
-  #_=>                  "post-item-acces-token"
-  #_=>                  "development"
-  #_=>                  "/Users/marc/dev/rollcage"
-  #_=>                  (Exception. "Test")
-  #_=>                  {:url "http://localhost:8080" :params {}})
+user=> (def r (rollcage/client "access-token" {:environment "staging"}))
+
+user=> (try
+  #_=>   (/ 0)
+  #_=>   (catch Exception e
+  #_=>     (rollcage/error r e)))
 {:err 0, :result {:id nil, :uuid "1cb0c8bf-3942-4553-a5c4-8adc5d55ed8f"}}
 ```
 
