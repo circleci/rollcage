@@ -143,7 +143,7 @@
          file-root  (guess-file-root)
          environment "production"}}]
   {:access-token access-token
-   :data {:environment environment
+   :data {:environment (name environment)
           :platform    os
           :language    "Clojure"
           :framework   "Ring"

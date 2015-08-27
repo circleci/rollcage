@@ -103,6 +103,12 @@
     (is (= "alpha" (-> c :data :environment)))
     (is (= "DOS" (-> c :data :platform)))))
 
+(deftest environments-can-be-kw-or-string
+  (letfn [(env [e] (-> (client/client "token" {:environment e}) :data :environment))]
+    (is (= "test" (env :test)))
+    (is (= "dev" (env 'dev)))
+    (is (= "staging" (env "staging")))))
+
 (deftest it-can-make-items
   (let [c (client/client "access-token" {})]
     (client/make-rollbar c "error" (Exception.) nil nil) ) )
