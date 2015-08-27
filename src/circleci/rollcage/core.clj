@@ -144,7 +144,7 @@
          environment "production"}}]
   {:access-token access-token
    :data {:environment (name environment)
-          :platform    os
+          :platform    (name os)
           :language    "Clojure"
           :framework   "Ring"
           :notifier    {:name "Rollcage"}

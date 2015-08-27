@@ -7,7 +7,8 @@
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop])
-  (:import [java.util UUID]))
+  (:import [java.util UUID]
+           [clojure.lang ExceptionInfo]))
 
 (use-fixtures :once schema.test/validate-schemas)
 
@@ -101,7 +102,10 @@
                                          :environment "alpha"})]
     (is (= "access-token" (:access-token c)))
     (is (= "alpha" (-> c :data :environment)))
-    (is (= "DOS" (-> c :data :platform)))))
+    (is (= "DOS" (-> c :data :platform))))
+
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Output of client\* does not match schema"
+                        (client/client "e" {:hostname 1}))))
 
 (deftest environments-can-be-kw-or-string
   (letfn [(env [e] (-> (client/client "token" {:environment e}) :data :environment))]
