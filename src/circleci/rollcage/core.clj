@@ -25,9 +25,7 @@
 (defn- deep-merge
   "Like merge, but merges maps recursively."
   [& maps]
-  (if (every? map? maps)
-    (apply merge-with deep-merge maps)
-    (last maps)))
+  (apply merge-with deep-merge maps))
 
 (def Item (deep-merge Client
                       {:data {:body {:trace_chain s/Any}
