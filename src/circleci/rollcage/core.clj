@@ -7,7 +7,7 @@
     [clj-stacktrace.core :refer (parse-trace-elem)]
     [clj-stacktrace.repl :refer (method-str)])
   (:import
-    [java.net InetAddress]
+    [java.net InetAddress UnknownHostException]
     [java.util UUID]))
 
 (def endpoint "https://api.rollbar.com/api/1/item/")
@@ -43,7 +43,8 @@
   (first (filter (complement string/blank?)
                  [(System/getenv "HOSTNAME") ;; Unix
                   (System/getenv "COMPUTERNAME") ;; Windows
-                  (.getHostName ^InetAddress (InetAddress/getLocalHost))])))
+                  (try (.getHostName ^InetAddress (InetAddress/getLocalHost))
+                       (catch UnknownHostException _ nil))])))
 
 (defn- guess-file-root []
   (System/getProperty "user.dir"))
@@ -136,19 +137,19 @@
 (s/defn ^:private client* :- Client
   [access-token :- String
    {:keys [os hostname environment code-version file-root]
-    :or {hostname (guess-hostname)
-         os (guess-os)
-         file-root  (guess-file-root)
-         environment "production"}}]
-  {:access-token access-token
-   :data {:environment (name environment)
-          :platform    (name os)
-          :language    "Clojure"
-          :framework   "Ring"
-          :notifier    {:name "Rollcage"}
-          :server      {:host hostname
-                        :root file-root
-                        :code_version code-version}}})
+    :or {environment "production"}}]
+  (let [os        (or os (guess-os))
+        hostname  (or hostname (guess-hostname))
+        file-root (or file-root (guess-file-root))]
+    {:access-token access-token
+     :data {:environment (name environment)
+            :platform    (name os)
+            :language    "Clojure"
+            :framework   "Ring"
+            :notifier    {:name "Rollcage"}
+            :server      {:host hostname
+                          :root file-root
+                          :code_version code-version}}}))
 
 (defn client
   ([access-token]
