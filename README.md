@@ -51,7 +51,7 @@ Releases are published [to Clojars under the CircleCI organisation](https://cloj
 You can publish new SNAPSHOT version of Rollcage using leiningen:
 
 ```bash
-$ lein deploy
+$ lein deploy clojars
 ```
 
 You can release a new version of Rollcage by editing the version string in
@@ -59,7 +59,7 @@ You can release a new version of Rollcage by editing the version string in
 `-SNAPSHOT` qualifier. Then run
 
 ```bash
-$ lein deploy
+$ lein deploy clojars
 ```
 
 ## License
