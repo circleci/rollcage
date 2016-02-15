@@ -1,8 +1,9 @@
 (ns circleci.rollcage.test-core
   (:use clojure.test)
   (:require [bond.james :as bond]
-            [schema.test]
+            [schema.test :refer (validate-schemas)]
             [clojure.test :refer :all]
+            [clojure.string :as string]
             [circleci.rollcage.core :as client]
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
@@ -10,7 +11,7 @@
   (:import [java.util UUID]
            [clojure.lang ExceptionInfo]))
 
-(use-fixtures :once schema.test/validate-schemas)
+(use-fixtures :once validate-schemas)
 
 (defn- ends-with?
   "true if a ends with b"
@@ -117,7 +118,11 @@
   (let [c (client/client "access-token" {})]
     (client/make-rollbar c "error" (Exception.) nil nil) ) )
 
-(deftest it-can-send-items
+(deftest ^:integration test-environment-is-setup
+  (is (not (string/blank? (System/getenv "ROLLBAR_ACCESS_TOKEN")))
+      "You must specify a ROLLBAR_ACCESS_TOKEN with POST credentials"))
+
+(deftest ^:integration it-can-send-items
   (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
         r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
         e (Exception. "horse")
