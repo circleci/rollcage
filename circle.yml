@@ -20,4 +20,4 @@ deployment:
   clojars:
     branch: master
     commands:
-      - lein deploy clojars
+      - lein release :patch

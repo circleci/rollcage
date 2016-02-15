@@ -1,4 +1,4 @@
-(defproject circleci/rollcage "0.2.2-SNAPSHOT"
+(defproject circleci/rollcage "0.2.3-SNAPSHOT"
   :description "A Clojure client for Rollbar"
   :url "http://github.com/circleci/rollcage"
   :license {:name "Eclipse Public License"
@@ -9,9 +9,14 @@
                                               :sign-releases false}]]
   :release-tasks [["vcs" "assert-committed"]
                   ["change" "version" "leiningen.release/bump-version" "release"]
-                  ;["shell" "git" "commit" "-am" "[skip ci] Version ${:version}"]
-                  ["vcs" "tag"]
-                  ["deploy" "clojars"]]
+                  ["shell" "git" "add" "project.clj"]
+                  ["shell" "git" "commit" "--message" "[skip ci] Version ${:version}"]
+                  ["vcs" "tag" "--no-sign"]
+                  ["deploy" "clojars"]
+                  ["change" "version" "leiningen.release/bump-version"]
+                  ["shell" "git" "add" "project.clj"]
+                  ["shell" "git" "commit" "--message" "[skip ci] Snapshot Version ${:version}"]
+                  ["vcs" "push"]]
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [cheshire "5.4.0"]
                  [clj-http "2.0.0"]
@@ -19,6 +24,7 @@
                  [clj-stacktrace "0.2.8"]]
   :plugins [[lein-cloverage "1.0.6"]
             [lein-shell "0.5.0"]
+            [lein-pprint "1.1.1"]
             [lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.7.0"]
                                   [bond "0.2.5"]]}}
