@@ -1,9 +1,9 @@
 (ns circleci.rollcage.core
   (:require
+    [circleci.rollcage.http :as http]
     [clojure.string :as string]
     [cheshire.core :as json]
     [schema.core :as s]
-    [clj-http.client :refer (post)]
     [clj-stacktrace.core :refer (parse-trace-elem)]
     [clj-stacktrace.repl :refer (method-str)])
   (:import
@@ -12,7 +12,22 @@
 
 (def endpoint "https://api.rollbar.com/api/1/item/")
 
+(def Person {:id String
+             :username (s/maybe String)
+             :email (s/maybe String)})
+
+(def Request {(s/optional-key :url) String
+              (s/optional-key :method) String
+              (s/optional-key :headers) {s/Any s/Any}
+              (s/optional-key :params) {s/Any s/Any}
+              (s/optional-key :GET) {s/Any s/Any}
+              (s/optional-key :POST) {s/Any s/Any}
+              (s/optional-key :user_ip) String
+              (s/optional-key :query_string) String
+              (s/optional-key :body) String})
+
 (def Client {:access-token String
+             :http-client  (s/protocol http/HttpClient)
              :data {:environment (s/maybe String)
                     :platform String
                     :language String
@@ -21,6 +36,12 @@
                     :server {:host String
                              :root String
                              :code_version (s/maybe String)}}})
+
+(def DataFromParams {(s/optional-key :custom)    {s/Any s/Any}
+                     (s/optional-key :request)   Request
+                     (s/optional-key :person)    Person
+                     (s/optional-key :context)   String
+                     (s/optional-key :framework) String})
 
 (defn- deep-merge
   "Like merge, but merges maps recursively."
@@ -32,9 +53,10 @@
                               :level String
                               :timestamp s/Int
                               :uuid UUID
-                              :custom s/Any ;; TODO verify custom
-                              :request {:url (s/maybe String)}}}))
-
+                              (s/optional-key :custom) s/Any ;; TODO verify custom
+                              (s/optional-key :person) Person
+                              (s/optional-key :context) String
+                              (s/optional-key :request) Request}}))
 
 (defn- guess-os []
   (System/getProperty "os.name"))
@@ -106,50 +128,51 @@
 (defn- ^UUID uuid []
   (UUID/randomUUID))
 
+(s/defn ^:private params->data :- DataFromParams
+  "Extract data for the Rollbar API from params"
+  [params :- (s/maybe s/Any)]
+  (let [param-keys [:request :person :context :framework]
+        custom     (apply dissoc params param-keys)]
+    (cond-> (select-keys params param-keys)
+      (not-empty custom) (assoc :custom custom))))
+
 (s/defn make-rollbar :- Item
   "Build a map that matches the Rollbar API"
   [client :- Client
    level  :- String
    exception :- Throwable
    url :- (s/maybe String)
-   params :- (s/maybe s/Any)]
-  ;; TODO: Pass request parameters through to here
-  ;; TODO: add person here
-  (-> client
-      (assoc-in [:data :body :trace_chain] (build-trace exception))
-      (assoc-in [:data :level]             level)
-      (assoc-in [:data :timestamp]         (timestamp))
-      (assoc-in [:data :uuid]              (uuid))
-      (assoc-in [:data :custom]            params)
-      (assoc-in [:data :request :url]      url)))
+   params :- (s/maybe {s/Any s/Any})]
+  (let [data (cond-> {:body      {:trace_chain (build-trace exception)}
+                      :level     level
+                      :timestamp (timestamp)
+                      :uuid      (uuid)}
+               true (merge (params->data params))
+               url  (assoc-in [:request :url] url))]
+    (update-in client [:data] merge data)))
 
 (defn snake-case [kw]
   (string/replace (name kw) "-" "_"))
 
-(defn send-item
-  "Send a Rollbar item using the HTTP REST API.
-  Return the result JSON parsed as a Map"
-  [endpoint item]
-  (let [result (post endpoint {:body (json/generate-string item {:key-fn snake-case})
-                               :content-type :json})]
-    (json/parse-string (:body result) true)))
-
 (s/defn ^:private client* :- Client
   [access-token :- String
-   {:keys [os hostname environment code-version file-root]
-    :or {environment "production"}}]
-  (let [os        (or os (guess-os))
-        hostname  (or hostname (guess-hostname))
-        file-root (or file-root (guess-file-root))]
-    {:access-token access-token
-     :data {:environment (name environment)
-            :platform    (name os)
-            :language    "Clojure"
-            :framework   "Ring"
-            :notifier    {:name "Rollcage"}
-            :server      {:host hostname
-                          :root file-root
-                          :code_version code-version}}}))
+   {:keys [os hostname environment code-version framework file-root http-client]
+    :or {environment "production"
+         framework   "Ring"
+         os          (guess-os)
+         file-root   (guess-file-root)
+         hostname    (guess-hostname)
+         http-client (http/make-default-http-client)}}]
+  {:access-token access-token
+   :http-client http-client
+   :data {:environment (name environment)
+          :platform    (name os)
+          :language    "Clojure"
+          :framework   framework
+          :notifier    {:name "Rollcage"}
+          :server      {:host hostname
+                        :root file-root
+                        :code_version code-version}}})
 
 (defn client
   ([access-token]
@@ -157,11 +180,18 @@
   ([access-token options]
    (client* access-token options)))
 
+(defn send-item
+  [http-client endpoint item]
+  (let [body (json/generate-string item {:key-fn snake-case})
+        result (http/post http-client endpoint body)]
+    (json/parse-string result true)))
+
 (defn notify
   ([level client exception]
    (notify level client exception {}))
-  ([level client exception {:keys [url params]}]
-   (send-item endpoint
+  ([level {:keys [http-client] :as client} exception {:keys [url params]}]
+   (send-item http-client
+              endpoint
               (make-rollbar client level exception url params))))
 
 (def critical (partial notify "critical"))
