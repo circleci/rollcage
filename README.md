@@ -25,6 +25,13 @@ user=> (try
 {:err 0, :result {:id nil, :uuid "1cb0c8bf-3942-4553-a5c4-8adc5d55ed8f"}}
 ```
 
+You can also setup handler for all UncaughtExceptions.
+Call this fn during start-up procedure to ensure all uncaught exceptions
+will be sent to Rollbar.
+
+user=> (rollcage/setup-uncaught-exception-handler r)
+
+
 ## Testing
 
 A full CI suite is [run on CircleCI](https://circleci.com/gh/circleci/rollcage).
