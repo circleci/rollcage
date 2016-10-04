@@ -164,6 +164,24 @@
    (send-item endpoint
               (make-rollbar client level exception url params))))
 
+
+(defn report-uncaught-exception
+  [level client exception thread]
+  (let [custom-data {:thread (.getName thread)}]
+    (send-item endpoint
+               (make-rollbar client level exception nil custom-data))))
+
+(defn setup-uncaught-exception-handler
+  "Setup handler to report all uncaught exceptions
+   to rollbar."
+  ([client]
+   (setup-uncaught-exception-handler client "error"))
+  ([client level]
+   (Thread/setDefaultUncaughtExceptionHandler
+     (reify Thread$UncaughtExceptionHandler
+       (uncaughtException [_ thread ex]
+         (report-uncaught-exception level client ex thread))))))
+
 (def critical (partial notify "critical"))
 (def error    (partial notify "error"))
 (def warning  (partial notify "warning"))

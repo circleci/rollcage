@@ -129,3 +129,16 @@
         {err :err {uuid :uuid } :result} (client/warning r e) ]
     (is (zero? err))
     (is (UUID/fromString uuid))))
+
+(deftest report-uncaught-exception-test
+  (with-redefs [client/send-item (fn [e r]
+                                   (if (and
+                                         (= "error" (get-in r [:data :level]))
+                                         (= "thread" (get-in r [:data :custom :thread])))
+                                     {:err 0}
+                                     {:err 1}))]
+    (let [c (client/client "access-token" {})
+          e (Exception. "uncaught")
+          thread (Thread. "thread")
+          {:keys [err]} (client/report-uncaught-exception "error" c e thread)]
+      (is (zero? err)))))
