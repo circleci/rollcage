@@ -20,4 +20,5 @@ deployment:
   clojars:
     branch: master
     commands:
+      - rm -rf venv
       - lein release :patch
