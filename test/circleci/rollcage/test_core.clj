@@ -4,7 +4,9 @@
             [schema.test :refer (validate-schemas)]
             [clojure.test :refer :all]
             [clojure.string :as string]
+            [clojure.set :refer [subset?]]
             [circleci.rollcage.core :as client]
+            [circleci.rollcage.http :as http]
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop])
@@ -18,6 +20,11 @@
   [a b]
   (let [tail (subvec (vec a) (- (count a) (count b)))]
     (= tail (vec b))))
+
+(defrecord TestHttpClient []
+  http/HttpClient
+  (post [this ex params]
+    "{\"test\":\"ok\"}"))
 
 (deftest ends-with-works?
   (is (ends-with? "foobar" "bar"))
@@ -108,6 +115,11 @@
   (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Output of client\* does not match schema"
                         (client/client "e" {:hostname 1}))))
 
+(deftest it-can-use-custom-http-clients
+  (let [http-client (->TestHttpClient)
+        c (client/client "access-token" {:http-client http-client})]
+    (is (= http-client (:http-client c)))))
+
 (deftest environments-can-be-kw-or-string
   (letfn [(env [e] (-> (client/client "token" {:environment e}) :data :environment))]
     (is (= "test" (env :test)))
@@ -115,8 +127,40 @@
     (is (= "staging" (env "staging")))))
 
 (deftest it-can-make-items
-  (let [c (client/client "access-token" {})]
-    (client/make-rollbar c "error" (Exception.) nil nil) ) )
+  (let [c (client/client "access-token" {})
+        make-item (partial client/make-rollbar c "error" (Exception.))]
+    (let [item (make-item nil nil)]
+      (is (apply = (map #(select-keys % [:access-token :http-client])
+                        [c item]))))
+
+    (let [item (make-item "http://example.com" nil)]
+      (is (= "http://example.com" (get-in item [:data :request :url]))))
+
+    (let [req {:url "http://example.com"
+               :params {:param-1 1 :param-2 2}
+               :headers {"Content-Type" "text/plain"}}
+          item (make-item nil {:request req})]
+      (is (= req (get-in item [:data :request]))))
+
+    (let [item (make-item nil {:context "project#context"})]
+      (is (= "project#context" (get-in item [:data :context]))))
+
+    (let [person {:email "email@example.com" :id "123" :username "some-user"}
+          item (make-item nil {:person person})]
+      (is (= person (get-in item [:data :person]))))
+
+    (let [custom {:some-key "custom"}
+          item (make-item nil custom)]
+      (is (= custom (get-in item [:data :custom]))))
+
+    (let [item (make-item "http://url1.com" {:request {:url "http://url2.com"}})]
+      (is (= "http://url1.com" (get-in item [:data :request :url]))))))
+
+(deftest it-can-send-items-via-custom-http-client
+  (let [http-client (->TestHttpClient)
+        c (client/client "access-token" {:http-client http-client})
+        r (client/notify "error" c (Exception.))]
+    (is (= {:test "ok"} r))))
 
 (deftest ^:integration test-environment-is-setup
   (is (not (string/blank? (System/getenv "ROLLBAR_ACCESS_TOKEN")))
