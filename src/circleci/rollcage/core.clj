@@ -175,12 +175,14 @@
   "Setup handler to report all uncaught exceptions
    to rollbar."
   ([client]
-   (setup-uncaught-exception-handler client "error"))
+   (setup-uncaught-exception-handler client "error" report-uncaught-exception))
   ([client level]
+   (setup-uncaught-exception-handler client level report-uncaught-exception))
+  ([client level reporting-fn]
    (Thread/setDefaultUncaughtExceptionHandler
      (reify Thread$UncaughtExceptionHandler
        (uncaughtException [_ thread ex]
-         (report-uncaught-exception level client ex thread))))))
+         (reporting-fn level client ex thread))))))
 
 (def critical (partial notify "critical"))
 (def error    (partial notify "error"))
