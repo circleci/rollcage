@@ -6,7 +6,6 @@
             [clojure.string :as string]
             [circleci.rollcage.core :as client]
             [clj-http.client :as http-client]
-            [clojure.tools.logging :as logging]
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop])
@@ -163,21 +162,3 @@
           thread (Thread. "thread")
           {:keys [err]} (client/report-uncaught-exception "error" c e thread)]
       (is (zero? err)))))
-
-(deftest rollbar-reporter-works
-  (let [dummy-rollcage-client {}
-        dummy-params {:some-params :some-values}
-        dummy-error (ex-info "something bad happened" {})
-        reporter (client/rollbar-reporter dummy-rollcage-client
-                                           dummy-params)]
-    (testing "passes exception to rollcage"
-      (bond/with-stub [client/error]
-        (reporter dummy-error)
-        (is ([[dummy-rollcage-client dummy-error {:params dummy-params}]]
-             (->> client/error bond/calls (map :args))))))
-    (testing "logs stacktrace when rollcage throws"
-      (bond/with-stub [[client/error (fn [_ _ _]
-                                         (throw (ex-info "some error" {})))]
-                       logging/log*]
-        (reporter dummy-error)
-        (is (1 (->> logging/log* bond/calls count)))))))

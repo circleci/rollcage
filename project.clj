@@ -8,7 +8,6 @@
                                               :password [:gpg :env/clojars_password]
                                               :sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/tools.logging "0.3.1"]
                  [cheshire "5.4.0"]
                  [clj-http "2.0.0"]
                  [prismatic/schema "0.4.3"]

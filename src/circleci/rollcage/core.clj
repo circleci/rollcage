@@ -1,7 +1,6 @@
 (ns circleci.rollcage.core
   (:require
     [clojure.string :as string]
-    [clojure.tools.logging :refer (infof errorf)]
     [cheshire.core :as json]
     [schema.core :as s]
     [clj-http.client :refer (post)]
@@ -199,18 +198,6 @@
 (def warning  (partial notify "warning"))
 (def info     (partial notify "info"))
 (def debug    (partial notify "debug"))
-
-(defn rollbar-reporter
-  "Returns a rollbar reporter function that takes an exception and
-  reports it to rollbar with the given params."
-  [rollcage-client params]
-  (infof "rollbar reporting configured for %s" params)
-  (fn [^Throwable ex]
-    (try
-      (error rollcage-client ex {:params params})
-      (catch Exception e
-        (errorf e "Unable to report exception to rollbar, original exception follows")
-        (.printStackTrace ex)))))
 
 (defn configure-rollbar!
   "Make rollcage handle uncaught exceptions and return a rollcage client."
