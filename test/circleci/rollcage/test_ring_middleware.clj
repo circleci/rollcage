@@ -2,7 +2,7 @@
   (:require [bond.james :as bond]
             [circleci.rollcage.ring-middleware :as middleware]
             [circleci.rollcage.core :as rollcage]
-            [clojure.test :refer (deftest)]))
+            [clojure.test :refer (deftest is)]))
 
 (deftest wrap-rollbar-works
   (let [dummy-ring-handler (fn [_]
