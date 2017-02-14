@@ -14,6 +14,7 @@
 (def endpoint "https://api.rollbar.com/api/1/item/")
 
 (def Client {:access-token String
+             (s/optional-key :failure-fn) clojure.lang.IFn
              :data {:environment (s/maybe String)
                     :platform String
                     :language String
@@ -131,26 +132,36 @@
   "Send a Rollbar item using the HTTP REST API.
   Return the result JSON parsed as a Map"
   [endpoint item]
-  (let [result (post endpoint {:body (json/generate-string item {:key-fn snake-case})
-                               :content-type :json})]
-    (json/parse-string (:body result) true)))
+  (try
+    (let [result (post endpoint
+                       {:body (json/generate-string (dissoc item :failure-fn)
+                                                    {:key-fn snake-case})
+                        :content-type :json})]
+      (json/parse-string (:body result) true))
+    (catch Exception e
+      (when-let [failure-fn (:failure-fn item)]
+        (failure-fn e))
+      (throw e))))
 
 (s/defn ^:private client* :- Client
   [access-token :- String
-   {:keys [os hostname environment code-version file-root]
+   {:keys [os hostname environment code-version file-root failure-fn]
     :or {environment "production"}}]
   (let [os        (or os (guess-os))
         hostname  (or hostname (guess-hostname))
         file-root (or file-root (guess-file-root))]
-    {:access-token access-token
-     :data {:environment (name environment)
-            :platform    (name os)
-            :language    "Clojure"
-            :framework   "Ring"
-            :notifier    {:name "Rollcage"}
-            :server      {:host hostname
-                          :root file-root
-                          :code_version code-version}}}))
+    (merge
+     {:access-token access-token
+      :data {:environment (name environment)
+             :platform    (name os)
+             :language    "Clojure"
+             :framework   "Ring"
+             :notifier    {:name "Rollcage"}
+             :server      {:host hostname
+                           :root file-root
+                           :code_version code-version}}}
+     (when failure-fn
+       {:failure-fn failure-fn}))))
 
 (defn client
   ([access-token]
