@@ -198,12 +198,3 @@
 (def warning  (partial notify "warning"))
 (def info     (partial notify "info"))
 (def debug    (partial notify "debug"))
-
-(defn configure-rollbar!
-  "Make rollcage handle uncaught exceptions and return a rollcage client."
-  [rollbar-token environment]
-  (when-not (string/blank? rollbar-token)
-    (infof "configuring rollbar, environment=%s" environment)
-    (let [client (client rollbar-token {:environment environment})]
-      (setup-uncaught-exception-handler client)
-      client)))
