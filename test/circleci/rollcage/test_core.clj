@@ -136,22 +136,19 @@
             http-error (ex-info "Some error" {:status 500})
             r (client/client token
                              {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"
-                              :failure-fn (fn [e]
-                                            (swap! delivery-exceptions conj e))})]
+                              :result-fn (fn [{:keys [exception]}]
+                                            (swap! delivery-exceptions conj exception))})]
         (with-redefs [http-client/post (fn [& args]
                                          (throw http-error))]
-          (let [result (try
-                         (client/warning r e)
-                         (catch Exception e
-                           e))]
-            ;; ensure the exception handling logic does not eat the exception
-            (is (= http-error result))
-
-            ;; ensure the failure-fn is called
-            (is (= [http-error] @delivery-exceptions))))))))
+          (is (= {:err 1
+                  :exception http-error
+                  :message "Some error"}
+                 (client/warning r e)))
+          (is (= [http-error]
+                 @delivery-exceptions)))))))
 
 (deftest report-uncaught-exception-test
-  (with-redefs [client/send-item (fn [e r]
+  (with-redefs [client/send-item (fn [e r result-fn]
                                    (if (and
                                          (= "error" (get-in r [:data :level]))
                                          (= "thread" (get-in r [:data :custom :thread])))
