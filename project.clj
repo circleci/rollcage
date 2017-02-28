@@ -17,7 +17,7 @@
             [lein-pprint "1.1.1"]
             [lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.7.0"]
-                                  [bond "0.2.5"]]}}
+                                  [circleci/bond "0.2.9"]]}}
   :test-selectors {:all         (constantly true)
                    :default     (constantly true)
                    :unit        (complement :integration)

@@ -5,6 +5,7 @@
             [clojure.test :refer :all]
             [clojure.string :as string]
             [circleci.rollcage.core :as client]
+            [clj-http.client :as http-client]
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop])
@@ -124,14 +125,30 @@
 
 (deftest ^:integration it-can-send-items
   (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
-        r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
-        e (Exception. "horse")
-        {err :err {uuid :uuid } :result} (client/warning r e) ]
-    (is (zero? err))
-    (is (UUID/fromString uuid))))
+        e (Exception. "horse")]
+    (testing "it can send items"
+      (let [r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
+            {err :err {uuid :uuid} :result} (client/warning r e)]
+        (is (zero? err))
+        (is (UUID/fromString uuid))))
+    (testing "it can handle errors while sending items"
+      (let [delivery-exceptions (atom [])
+            http-error (ex-info "Some error" {:status 500})
+            r (client/client token
+                             {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"
+                              :result-fn (fn [{:keys [exception]}]
+                                            (swap! delivery-exceptions conj exception))})]
+        (with-redefs [http-client/post (fn [& args]
+                                         (throw http-error))]
+          (is (= {:err 1
+                  :exception http-error
+                  :message "Some error"}
+                 (client/warning r e)))
+          (is (= [http-error]
+                 @delivery-exceptions)))))))
 
 (deftest report-uncaught-exception-test
-  (with-redefs [client/send-item (fn [e r]
+  (with-redefs [client/send-item (fn [e r result-fn]
                                    (if (and
                                          (= "error" (get-in r [:data :level]))
                                          (= "thread" (get-in r [:data :custom :thread])))

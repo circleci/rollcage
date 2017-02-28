@@ -13,6 +13,7 @@
 (def endpoint "https://api.rollbar.com/api/1/item/")
 
 (def Client {:access-token String
+             :result-fn clojure.lang.IFn
              :data {:environment (s/maybe String)
                     :platform String
                     :language String
@@ -27,7 +28,7 @@
   [& maps]
   (apply merge-with deep-merge maps))
 
-(def Item (deep-merge Client
+(def Item (deep-merge (dissoc Client :result-fn)
                       {:data {:body {:trace_chain s/Any}
                               :level String
                               :timestamp s/Int
@@ -116,6 +117,7 @@
   ;; TODO: Pass request parameters through to here
   ;; TODO: add person here
   (-> client
+      (dissoc :result-fn)
       (assoc-in [:data :body :trace_chain] (build-trace exception))
       (assoc-in [:data :level]             level)
       (assoc-in [:data :timestamp]         (timestamp))
@@ -126,22 +128,38 @@
 (defn snake-case [kw]
   (string/replace (name kw) "-" "_"))
 
+(defn- send-item*
+  [endpoint item]
+  (try
+    (let [result (post endpoint
+                       {:body (json/generate-string item {:key-fn snake-case})
+                        :content-type :json})]
+      (json/parse-string (:body result) true))
+    (catch Exception e
+      ;; Return an error that matches the shape of the Rollbar API
+      ;; with an added :exception key
+      {:err 1
+       :exception e
+       :message (.getMessage e)})))
+
 (defn send-item
   "Send a Rollbar item using the HTTP REST API.
   Return the result JSON parsed as a Map"
-  [endpoint item]
-  (let [result (post endpoint {:body (json/generate-string item {:key-fn snake-case})
-                               :content-type :json})]
-    (json/parse-string (:body result) true)))
+  [endpoint item result-fn]
+  (let [result (send-item* endpoint item)]
+    (result-fn result)
+    result))
 
 (s/defn ^:private client* :- Client
   [access-token :- String
-   {:keys [os hostname environment code-version file-root]
+   {:keys [os hostname environment code-version file-root result-fn]
     :or {environment "production"}}]
   (let [os        (or os (guess-os))
         hostname  (or hostname (guess-hostname))
-        file-root (or file-root (guess-file-root))]
+        file-root (or file-root (guess-file-root))
+        result-fn (or result-fn (constantly nil))]
     {:access-token access-token
+     :result-fn result-fn
      :data {:environment (name environment)
             :platform    (name os)
             :language    "Clojure"
@@ -162,14 +180,13 @@
    (notify level client exception {}))
   ([level client exception {:keys [url params]}]
    (send-item endpoint
-              (make-rollbar client level exception url params))))
-
+              (make-rollbar client level exception url params)
+              (:result-fn client))))
 
 (defn report-uncaught-exception
   [level client exception thread]
-  (let [custom-data {:thread (.getName thread)}]
-    (send-item endpoint
-               (make-rollbar client level exception nil custom-data))))
+  (notify level client exception
+          {:params {:thread (.getName thread)}}))
 
 (defn setup-uncaught-exception-handler
   "Setup handler to report all uncaught exceptions
