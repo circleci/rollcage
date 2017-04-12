@@ -181,11 +181,15 @@
    (notify level client exception {}))
   ([level client exception {:keys [url params]}]
    (if (string/blank? (:access-token client))
-     ;; Logging expcetion where rollcage client is not configured properly e.g. dev env
-     (logging/warn exception "Rollbar token is empty so falling back to logging.")
-     (send-item endpoint
-                (make-rollbar client level exception url params)
-                (:result-fn client)))))
+     ;; Logging exception where rollcage client is not configured properly e.g.
+     ;; development environments
+     (logging/warn exception "Rollbar token is empty, falling back to logging.")
+     (let [params (merge params
+                         (when (instance? clojure.lang.ExceptionInfo exception)
+                          {:ex-data (ex-data exception)}))]
+       (send-item endpoint
+                  (make-rollbar client level exception url params)
+                  (:result-fn client))))))
 
 (defn report-uncaught-exception
   [level client exception thread]
