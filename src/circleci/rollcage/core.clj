@@ -1,6 +1,7 @@
 (ns circleci.rollcage.core
   (:require
     [clojure.string :as string]
+    [clojure.tools.logging :as logging]
     [cheshire.core :as json]
     [schema.core :as s]
     [clj-http.client :refer (post)]
@@ -179,9 +180,12 @@
   ([level client exception]
    (notify level client exception {}))
   ([level client exception {:keys [url params]}]
-   (send-item endpoint
-              (make-rollbar client level exception url params)
-              (:result-fn client))))
+   (if (string/blank? (:access-token client))
+     ;; Logging expcetion where rollcage client is not configured properly e.g. dev env
+     (logging/warn exception "Rollbar token is empty so falling back to logging.")
+     (send-item endpoint
+                (make-rollbar client level exception url params)
+                (:result-fn client)))))
 
 (defn report-uncaught-exception
   [level client exception thread]
