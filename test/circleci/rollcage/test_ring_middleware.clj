@@ -20,7 +20,7 @@
                          (catch Exception e
                            e))]
             (is (= result error))
-            (is (= [[dummy-rollcage-client error {:uri "/"}]]
+            (is (= [[dummy-rollcage-client error {:uri "/" :params {}}]]
                    (->> rollcage/error
                         bond/calls
                         (map :args))))))))
