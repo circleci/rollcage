@@ -193,8 +193,12 @@
 
 (defn report-uncaught-exception
   [level client exception thread]
-  (notify level client exception
-          {:params {:thread (.getName thread)}}))
+  (try
+    (logging/fatal exception "Uncaught exception thrown, process will abort")
+    (notify level client exception
+            {:params {:thread (.getName thread)}})
+    (catch Exception e
+      (logging/fatal e "Error sending uncaught exception to Rollbar"))))
 
 (defn setup-uncaught-exception-handler
   "Setup handler to report all uncaught exceptions
