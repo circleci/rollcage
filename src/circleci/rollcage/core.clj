@@ -114,7 +114,7 @@
    level  :- String
    exception :- Throwable
    url :- (s/maybe String)
-   params :- (s/maybe s/Any)]
+   custom :- (s/maybe {s/Any s/Any})]
   ;; TODO: Pass request parameters through to here
   ;; TODO: add person here
   (-> client
@@ -123,7 +123,7 @@
       (assoc-in [:data :level]             level)
       (assoc-in [:data :timestamp]         (timestamp))
       (assoc-in [:data :uuid]              (uuid))
-      (assoc-in [:data :custom]            params)
+      (assoc-in [:data :custom]            custom)
       (assoc-in [:data :request :url]      url)))
 
 (defn snake-case [kw]
@@ -176,20 +176,26 @@
   ([access-token options]
    (client* access-token options)))
 
+(def ^:private rollbar-to-logging
+  "A look-up table to map from Rollbar severity levels to tools.logging levels"
+  {"critical" :fatal
+   "error"    :error
+   "warning"  :warn
+   "info"     :info})
+
 (defn notify
   ([level client exception]
    (notify level client exception {}))
   ([level client exception {:keys [url params]}]
-   (if (string/blank? (:access-token client))
-     ;; Logging exception where rollcage client is not configured properly e.g.
-     ;; development environments
-     (logging/warn exception "Rollbar token is empty, falling back to logging.")
-     (let [params (merge params
-                         (when (instance? clojure.lang.ExceptionInfo exception)
-                          {:ex-data (ex-data exception)}))]
-       (send-item endpoint
-                  (make-rollbar client level exception url params)
-                  (:result-fn client))))))
+   (let [log-level (rollbar-to-logging level)
+         params (merge params (ex-data exception))]
+     (if (string/blank? (:access-token client))
+       (logging/log log-level exception "No Rollbar token configured. Not reporting exception.")
+       (do
+         (logging/log log-level exception "Sending exception to Rollbar")
+         (send-item endpoint
+                    (make-rollbar client level exception url params)
+                    (:result-fn client)))))))
 
 (defn report-uncaught-exception
   [level client exception thread]

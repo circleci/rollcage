@@ -147,6 +147,16 @@
           (is (= [http-error]
                  @delivery-exceptions)))))))
 
+(deftest ^:integration it-can-send-ex-data
+  (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
+        cause (Exception. "connection error")
+        e (ex-info "system error" {:key1 "one" :key2 "two"} cause)]
+    (testing "it can send items"
+      (let [r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
+            {err :err {uuid :uuid} :result} (client/warning r e)]
+        (is (zero? err))
+        (is (UUID/fromString uuid))))))
+
 (deftest report-uncaught-exception-test
   (with-redefs [client/send-item (fn [e r result-fn]
                                    (if (and
