@@ -26,4 +26,4 @@ deployment:
       - git clean -d --force
       - git config --global user.email "sayhi@circleci.com"
       - git config --global user.name "CircleCI builder"
-      - lein release :patch
+      - lein deploy clojars
