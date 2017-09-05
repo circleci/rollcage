@@ -31,6 +31,8 @@ will be sent to Rollbar.
 
 user=> (rollcage/setup-uncaught-exception-handler r)
 
+See the full [API docs](https://circleci.github.io/rollcage/) for more
+information.
 
 ## Testing
 

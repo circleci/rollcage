@@ -1,6 +1,8 @@
 machine:
   environment:
     CLOVERAGE_VERSION: 1.0.7-SNAPSHOT
+    GIT_DEPLOY_DIR: target/doc
+
   java:
     version: oraclejdk8
   python:
@@ -27,3 +29,4 @@ deployment:
       - git config --global user.email "sayhi@circleci.com"
       - git config --global user.name "CircleCI builder"
       - lein deploy
+      - scripts/docs_deploy.sh
