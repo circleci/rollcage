@@ -11,25 +11,25 @@
     [java.net InetAddress UnknownHostException]
     [java.util UUID]))
 
-(def endpoint "https://api.rollbar.com/api/1/item/")
+(def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
-(def Client {:access-token String
-             :result-fn clojure.lang.IFn
-             :data {:environment (s/maybe String)
-                    :platform String
-                    :language String
-                    :framework String
-                    :notifier {:name String}
-                    :server {:host String
-                             :root String
-                             :code_version (s/maybe String)}}})
+(def ^:private Client {:access-token String
+                       :result-fn clojure.lang.IFn
+                       :data {:environment (s/maybe String)
+                              :platform String
+                              :language String
+                              :framework String
+                              :notifier {:name String}
+                              :server {:host String
+                                       :root String
+                                       :code_version (s/maybe String)}}})
 
 (defn- deep-merge
   "Like merge, but merges maps recursively."
   [& maps]
   (apply merge-with deep-merge maps))
 
-(def Item (deep-merge (dissoc Client :result-fn)
+(def ^:private Item (deep-merge (dissoc Client :result-fn)
                       {:data {:body {:trace_chain s/Any}
                               :level String
                               :timestamp s/Int
@@ -59,7 +59,7 @@
    :lineno line
    :method (method-str frame)})
 
-(defn drop-common-head
+(defn- drop-common-head
   "Return a vector containing a copy of ys with any common head with xs removed.
   (drop-common-head [1 2 3 foo bar baz] [1 2 3 cat hat mat])
   => [cat hat mat]"
@@ -72,7 +72,7 @@
     (recur (rest xs)
            (rest ys))))
 
-(defn drop-common-substacks
+(defn- drop-common-substacks
   "Remove the common substacks from trace so that each callstack in a chained
   exceptions does not have the same 20 line prelude"
   [trace]
@@ -87,7 +87,7 @@
                (conj result (assoc (first tail) :frames cleaned))))
       result)))
 
-(defn build-trace
+(defn- build-trace
   "Given an Exception, create a sequence of callstacks with one for each
   Exception in the cause-chain."
   [^Throwable exception]
@@ -108,7 +108,7 @@
 (defn- ^UUID uuid []
   (UUID/randomUUID))
 
-(s/defn make-rollbar :- Item
+(s/defn ^:private make-rollbar :- Item
   "Build a map that matches the Rollbar API"
   [client :- Client
    level  :- String
@@ -126,7 +126,7 @@
       (assoc-in [:data :custom]            custom)
       (assoc-in [:data :request :url]      url)))
 
-(defn snake-case [kw]
+(defn- snake-case [kw]
   (string/replace (name kw) "-" "_"))
 
 (defn- send-item*
@@ -143,12 +143,12 @@
        :exception e
        :message (.getMessage e)})))
 
-(defn send-item
+(defn- send-item
   "Send a Rollbar item using the HTTP REST API.
   Return the result JSON parsed as a Map"
-  [endpoint item result-fn]
+  [^String endpoint ^Throwable exception item result-fn]
   (let [result (send-item* endpoint item)]
-    (result-fn result)
+    (result-fn exception result)
     result))
 
 (s/defn ^:private client* :- Client
@@ -170,12 +170,6 @@
                           :root file-root
                           :code_version code-version}}}))
 
-(defn client
-  ([access-token]
-   (client access-token {}))
-  ([access-token options]
-   (client* access-token options)))
-
 (def ^:private rollbar-to-logging
   "A look-up table to map from Rollbar severity levels to tools.logging levels"
   {"critical" :fatal
@@ -183,10 +177,56 @@
    "warning"  :warn
    "info"     :info})
 
+(defn client
+  "Create a client that can can be passed used to send notifications to Rollbar.
+  The following options can be set: 
+
+  :os
+  The name of the operating system running on the host. Defaults to the value
+  of the `os.name` system property.
+
+  :hostname
+  The hostname of the host.
+
+  :file-root
+  The path on disk where the filenames in stack traces are relative to. Defaults
+  the current working directory, as reported by the `user.dir` system property.
+
+  :environment
+  The environment that the app is running is, for example `staging` or `dev`.
+  Defaults to `production`.
+
+  :code-version
+  A string, up to 40 characters, describing the version of the application code
+  Rollbar understands these formats:
+  - semantic version (i.e. '2.1.12')
+  - integer (i.e. '45')
+  - git SHA (i.e. '3da541559918a808c2402bba5012f6c60b27661c')
+  There is no default value.
+
+  :result-fn
+  An function that will be called after each exception is sent to Rollbar.
+  The function will be passed 2 parameters:
+  - The Throwable that was being reported
+  - A map with the result of sending the exception to Rollbar. This map will
+    have the following keys:
+      :err     - an integer, 1 if there was an error sending the exception to
+                 Rollbar, 0 otherwise.
+      :message - A human-readable message describing the error.
+
+  See https://rollbar.com/docs/api/items_post/
+
+  More information on System Properties:
+  https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html"
+  ([access-token]
+   (client access-token {}))
+  ([access-token options]
+   (client* access-token options)))
+
 (defn notify
-  ([level client exception]
+  ([^String level client ^Throwable exception]
    (notify level client exception {}))
-  ([level client exception {:keys [url params]}]
+  ([^String level client ^Throwable exception {:keys [url params]}]
    (let [log-level (rollbar-to-logging level)
          params (merge params (ex-data exception))]
      (if (string/blank? (:access-token client))
@@ -194,24 +234,23 @@
        (do
          (logging/log log-level exception "Sending exception to Rollbar")
          (send-item endpoint
+                    exception
                     (make-rollbar client level exception url params)
                     (:result-fn client)))))))
 
-(defn report-uncaught-exception
+(defn- report-uncaught-exception
   [level client exception thread]
   (notify level client exception
-          {:params {:thread (.getName thread)}}))
+          {:params {:thread-name (.getName thread)}}))
 
 (defn setup-uncaught-exception-handler
   "Setup handler to report all uncaught exceptions
-   to rollbar."
-  ([client]
-   (setup-uncaught-exception-handler client "error"))
-  ([client level]
-   (Thread/setDefaultUncaughtExceptionHandler
-     (reify Thread$UncaughtExceptionHandler
-       (uncaughtException [_ thread ex]
-         (report-uncaught-exception level client ex thread))))))
+  to rollbar."
+  [client]
+  (Thread/setDefaultUncaughtExceptionHandler
+    (reify Thread$UncaughtExceptionHandler
+      (uncaughtException [_ thread ex]
+        (report-uncaught-exception "critical" client ex thread)))))
 
 (def critical (partial notify "critical"))
 (def error    (partial notify "error"))

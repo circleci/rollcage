@@ -28,7 +28,7 @@
   (prop/for-all
     [a (gen/list gen/int)
      b (gen/list gen/int)]
-    (let [r (client/drop-common-head a b)]
+    (let [r (#'client/drop-common-head a b)]
       (or (empty? a)
           (empty? b)
           (ends-with? b r)))))
@@ -56,14 +56,14 @@
                              {:method "clojure.core//", :filename "core.clj", :lineno 985}
                              {:method "clojure.lang.Numbers.divide", :filename "Numbers.java", :lineno 3707}
                              {:method "clojure.lang.Numbers.divide", :filename "Numbers.java", :lineno 156}]}]
-        result (client/drop-common-substacks exception)]
+        result (#'client/drop-common-substacks exception)]
     (is (= "core.clj" (-> result second :frames first :filename)))
     (is (= 5 (-> result second :frames count)))))
 
 (deftest it-can-parse-exceptions
   (testing "Simple exceptions"
     (let [e (Exception. "test")
-          item (first (client/build-trace e)) ]
+          item (first (#'client/build-trace e)) ]
       (is (= "test" (-> item :exception :message)))
       (is (= "class java.lang.Exception" (-> item :exception :class)))
       (let [^String method (-> item :frames last :method)] (is (.startsWith method "circleci.rollcage")))
@@ -79,7 +79,7 @@
                        (/ 0)
                        (catch Exception e
                          (throw (Exception. "middle" e)))))))
-          item (client/build-trace e)
+          item (#'client/build-trace e)
           cause (last item)]
 
       (testing "the cause"
@@ -117,11 +117,31 @@
 
 (deftest it-can-make-items
   (let [c (client/client "access-token" {})]
-    (client/make-rollbar c "error" (Exception.) nil nil) ) )
+    (is (= {:access-token "access-token"
+            }
+           (select-keys (#'client/make-rollbar c "error" (Exception.) nil nil)
+                        [:access-token])))))
 
 (deftest ^:integration test-environment-is-setup
   (is (not (string/blank? (System/getenv "ROLLBAR_ACCESS_TOKEN")))
       "You must specify a ROLLBAR_ACCESS_TOKEN with POST credentials"))
+
+(deftest ^:integration it-calls-result-fn
+  (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
+        e (Exception. "horse")
+        p (promise)
+        result-fn (fn [ex result]
+                    (deliver p [ex result]))]
+    (testing "it can send items"
+      (let [r (client/client token {:result-fn result-fn})
+            {err :err {uuid :uuid} :result} (client/warning r e)]
+        (is (zero? err))
+        (is (UUID/fromString uuid))
+        (is (realized? p))
+        (is (= [e {:err 0
+                   :result {:id nil, :uuid uuid}}
+ 
+                   ] @p))))))
 
 (deftest ^:integration it-can-send-items
   (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
@@ -136,7 +156,7 @@
             http-error (ex-info "Some error" {:status 500})
             r (client/client token
                              {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"
-                              :result-fn (fn [{:keys [exception]}]
+                              :result-fn (fn [_ {:keys [exception]}]
                                             (swap! delivery-exceptions conj exception))})]
         (with-redefs [http-client/post (fn [& args]
                                          (throw http-error))]
@@ -158,14 +178,22 @@
         (is (UUID/fromString uuid))))))
 
 (deftest report-uncaught-exception-test
-  (with-redefs [client/send-item (fn [e r result-fn]
-                                   (if (and
-                                         (= "error" (get-in r [:data :level]))
-                                         (= "thread" (get-in r [:data :custom :thread])))
-                                     {:err 0}
-                                     {:err 1}))]
-    (let [c (client/client "access-token" {})
-          e (Exception. "uncaught")
-          thread (Thread. "thread")
-          {:keys [err]} (client/report-uncaught-exception "error" c e thread)]
-      (is (zero? err)))))
+  (let [p (promise)]
+    (with-redefs [client/send-item
+                  (fn [_ _ r _]
+                    (deliver p r)
+                    {:err 0})]
+      (let [c (client/client "access-token" {})
+            e (Exception. "uncaught")
+            thread (Thread. "thread")
+            {:keys [err]} (#'client/report-uncaught-exception "critical" c e thread)
+            result (deref p 0 :failed)]
+        (is (zero? err))
+        (is (not (= result :failed)))
+        (is (= "critical" (get-in result [:data :level])) )
+        (is (= "thread" (get-in result [:data :custom :thread-name])))
+
+        ))))
+
+(comment
+  (run-tests))
