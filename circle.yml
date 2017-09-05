@@ -29,4 +29,5 @@ deployment:
       - git config --global user.email "sayhi@circleci.com"
       - git config --global user.name "CircleCI builder"
       - lein deploy
+      - lein codox
       - scripts/docs_deploy.sh
