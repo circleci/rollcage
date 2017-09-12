@@ -15,6 +15,7 @@
 
 (def ^:private Client {:access-token String
                        :result-fn clojure.lang.IFn
+                       :send-fn clojure.lang.IFn
                        :data {:environment (s/maybe String)
                               :platform String
                               :language String
@@ -29,7 +30,7 @@
   [& maps]
   (apply merge-with deep-merge maps))
 
-(def ^:private Item (deep-merge (dissoc Client :result-fn)
+(def ^:private Item (deep-merge (dissoc Client :result-fn :send-fn)
                       {:data {:body {:trace_chain s/Any}
                               :level String
                               :timestamp s/Int
@@ -118,7 +119,7 @@
   ;; TODO: Pass request parameters through to here
   ;; TODO: add person here
   (-> client
-      (dissoc :result-fn)
+      (dissoc :result-fn :send-fn)
       (assoc-in [:data :body :trace_chain] (build-trace exception))
       (assoc-in [:data :level]             level)
       (assoc-in [:data :timestamp]         (timestamp))
@@ -129,27 +130,32 @@
 (defn- snake-case [kw]
   (string/replace (name kw) "-" "_"))
 
-(defn- send-item*
-  [endpoint item]
-  (try
-    (let [result (post endpoint
-                       {:body (json/generate-string item {:key-fn snake-case})
-                        :content-type :json})]
-      (json/parse-string (:body result) true))
-    (catch Exception e
-      ;; Return an error that matches the shape of the Rollbar API
-      ;; with an added :exception key
-      {:err 1
-       :exception e
-       :message (.getMessage e)})))
+(def ^:private rollbar-to-logging
+  "A look-up table to map from Rollbar severity levels to tools.logging levels"
+  {"critical" :fatal
+   "error"    :error
+   "warning"  :warn
+   "info"     :info})
 
-(defn- send-item
+(defn- send-item-null
+  [^String endpoint ^Throwable exception item]
+  (logging/log (rollbar-to-logging (get-in item [:data :level]))
+               exception
+               "No Rollbar token configured. Not reporting exception.")
+  {:err 0
+   :message "Rollbar is not configured. Item was not sent"})
+
+(defn- send-item-http
   "Send a Rollbar item using the HTTP REST API.
   Return the result JSON parsed as a Map"
-  [^String endpoint ^Throwable exception item result-fn]
-  (let [result (send-item* endpoint item)]
-    (result-fn exception result)
-    result))
+  [^String endpoint ^Throwable exception item]
+  (logging/log (rollbar-to-logging (get-in item [:data :level]))
+               exception
+               "Sending exception to Rollbar")
+  (let [result (post endpoint
+                     {:body (json/generate-string item {:key-fn snake-case})
+                      :content-type :json})]
+    (json/parse-string (:body result) true)))
 
 (s/defn ^:private client* :- Client
   [access-token :- String
@@ -161,6 +167,9 @@
         result-fn (or result-fn (constantly nil))]
     {:access-token access-token
      :result-fn result-fn
+     :send-fn (if (string/blank? access-token)
+                send-item-null
+                send-item-http)
      :data {:environment (name environment)
             :platform    (name os)
             :language    "Clojure"
@@ -169,13 +178,6 @@
             :server      {:host hostname
                           :root file-root
                           :code_version code-version}}}))
-
-(def ^:private rollbar-to-logging
-  "A look-up table to map from Rollbar severity levels to tools.logging levels"
-  {"critical" :fatal
-   "error"    :error
-   "warning"  :warn
-   "info"     :info})
 
 (defn client
   "Create a client that can can be passed used to send notifications to Rollbar.
@@ -226,17 +228,20 @@
 (defn notify
   ([^String level client ^Throwable exception]
    (notify level client exception {}))
-  ([^String level client ^Throwable exception {:keys [url params]}]
+  ([^String level {:keys [result-fn  send-fn] :as client} ^Throwable exception {:keys [url params]}]
    (let [log-level (rollbar-to-logging level)
-         params (merge params (ex-data exception))]
-     (if (string/blank? (:access-token client))
-       (logging/log log-level exception "No Rollbar token configured. Not reporting exception.")
-       (do
-         (logging/log log-level exception "Sending exception to Rollbar")
-         (send-item endpoint
-                    exception
-                    (make-rollbar client level exception url params)
-                    (:result-fn client)))))))
+         params (merge params (ex-data exception))
+         item (make-rollbar client level exception url params)
+         result (try
+                  (send-fn endpoint exception item)
+                  (catch Exception e
+                    ;; Return an error that matches the shape of the Rollbar API
+                    ;; with an added :exception key
+                    {:err 1
+                     :exception e
+                     :message (.getMessage e)}))]
+     (result-fn exception result)
+     result)))
 
 (defn- report-uncaught-exception
   [level client exception thread]

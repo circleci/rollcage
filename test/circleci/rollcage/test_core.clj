@@ -179,9 +179,9 @@
 
 (deftest report-uncaught-exception-test
   (let [p (promise)]
-    (with-redefs [client/send-item
-                  (fn [_ _ r _]
-                    (deliver p r)
+    (with-redefs [client/send-item-http
+                  (fn [_ _ item]
+                    (deliver p item)
                     {:err 0})]
       (let [c (client/client "access-token" {})
             e (Exception. "uncaught")
