@@ -13,7 +13,7 @@
 
 (def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
-(def ^:private Client {:access-token String
+(def ^:private Client {:access-token (s/maybe String)
                        :result-fn clojure.lang.IFn
                        :send-fn clojure.lang.IFn
                        :data {:environment (s/maybe String)
@@ -143,7 +143,9 @@
                exception
                "No Rollbar token configured. Not reporting exception.")
   {:err 0
-   :message "Rollbar is not configured. Item was not sent"})
+   :result {:uuid (-> item
+                      (get-in [:data :uuid])
+                      (str))}})
 
 (defn- send-item-http
   "Send a Rollbar item using the HTTP REST API.
@@ -158,7 +160,7 @@
     (json/parse-string (:body result) true)))
 
 (s/defn ^:private client* :- Client
-  [access-token :- String
+  [access-token :- (s/maybe String)
    {:keys [os hostname environment code-version file-root result-fn]
     :or {environment "production"}}]
   (let [os        (or os (guess-os))
