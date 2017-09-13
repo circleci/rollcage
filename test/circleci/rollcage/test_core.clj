@@ -139,9 +139,8 @@
         (is (UUID/fromString uuid))
         (is (realized? p))
         (is (= [e {:err 0
-                   :result {:id nil, :uuid uuid}}
- 
-                   ] @p))))))
+                   :result {:id nil, :uuid uuid}}]
+               @p))))))
 
 (deftest ^:integration it-can-send-items
   (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
@@ -178,22 +177,31 @@
         (is (UUID/fromString uuid))))))
 
 (deftest report-uncaught-exception-test
-  (let [p (promise)]
-    (with-redefs [client/send-item
-                  (fn [_ _ r _]
-                    (deliver p r)
-                    {:err 0})]
-      (let [c (client/client "access-token" {})
-            e (Exception. "uncaught")
-            thread (Thread. "thread")
-            {:keys [err]} (#'client/report-uncaught-exception "critical" c e thread)
-            result (deref p 0 :failed)]
-        (is (zero? err))
-        (is (not (= result :failed)))
-        (is (= "critical" (get-in result [:data :level])) )
-        (is (= "thread" (get-in result [:data :custom :thread-name])))
+  (let [p (promise)
+        c (assoc (client/client "access-token" {})
+                 :send-fn (fn [_ _ item]
+                            (deliver p item)
+                            {:err 0}))
+        e (Exception. "uncaught")
+        thread (Thread. "thread")
+        {:keys [err]} (#'client/report-uncaught-exception "critical" c e thread)
+        result (deref p 0 :failed)]
+    (is (zero? err))
+    (is (not (= result :failed)))
+    (is (= "critical" (get-in result [:data :level])) )
+    (is (= "thread" (get-in result [:data :custom :thread-name])))))
 
-        ))))
+(deftest it-handles-no-access-token
+  (let [token nil
+        cause (Exception. "connection error")
+        e (ex-info "system error" {:key1 "one" :key2 "two"} cause)]
+    (testing "it can send items"
+      (let [r (client/client token {:file-root "/usr/local/src"
+                                    :code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
+            {err :err skipped :skipped {uuid :uuid} :result} (client/warning r e)]
+        (is (zero? err))
+        (is (true? skipped))
+        (is (UUID/fromString uuid))))))
 
 (comment
   (run-tests))
