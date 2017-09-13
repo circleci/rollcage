@@ -138,14 +138,13 @@
    "info"     :info})
 
 (defn- send-item-null
-  [^String endpoint ^Throwable exception item]
-  (logging/log (rollbar-to-logging (get-in item [:data :level]))
+  [^String endpoint ^Throwable exception {:keys [data] :as item}]
+  (logging/log (rollbar-to-logging (:level data))
                exception
                "No Rollbar token configured. Not reporting exception.")
   {:err 0
-   :result {:uuid (-> item
-                      (get-in [:data :uuid])
-                      (str))}})
+   :skipped true
+   :result {:uuid (str (:uuid data))}})
 
 (defn- send-item-http
   "Send a Rollbar item using the HTTP REST API.
