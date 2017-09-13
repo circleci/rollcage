@@ -10,9 +10,6 @@ machine:
 general:
   artifacts:
     - target/coverage
-dependencies:
-  pre:
-    - yes | sudo LEIN_ROOT=true lein upgrade
 test:
   pre:
     - mkdir $CIRCLE_TEST_REPORTS/lein
