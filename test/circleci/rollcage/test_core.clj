@@ -196,7 +196,8 @@
         cause (Exception. "connection error")
         e (ex-info "system error" {:key1 "one" :key2 "two"} cause)]
     (testing "it can send items"
-      (let [r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
+      (let [r (client/client token {:file-root "/usr/local/src"
+                                    :code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
             {err :err skipped :skipped {uuid :uuid} :result} (client/warning r e)]
         (is (zero? err))
         (is (true? skipped))
