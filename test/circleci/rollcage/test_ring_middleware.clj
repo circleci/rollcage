@@ -9,7 +9,9 @@
         dummy-ring-handler (fn [_]
                              (throw error)
                              {:status 200})
-        dummy-request {:uri "/" :params {}}]
+        dummy-request {:http-method :get
+                       :uri "/search"
+                       :query-string "q=clojure"}]
     (testing "Reports rollbars when rollcage-client is truthy"
       (let [dummy-rollcage-client {}
             wrapped-handler (middleware/wrap-rollbar dummy-ring-handler
@@ -20,7 +22,8 @@
                          (catch Exception e
                            e))]
             (is (= result error))
-            (is (= [[dummy-rollcage-client error {:uri "/"}]]
+            (is (= [[dummy-rollcage-client error {:url "/search" :params {:http-method :get
+                                                                          :query-string "q=clojure"}}]]
                    (->> rollcage/error
                         bond/calls
                         (map :args))))))))
