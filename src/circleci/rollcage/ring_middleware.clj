@@ -8,5 +8,5 @@
       (try
         (handler req)
         (catch Exception e
-          (rollcage/error rollcage-client e (select-keys req [:uri]))
+          (rollcage/error rollcage-client e {:url (:uri req)})
           (throw e))))))
