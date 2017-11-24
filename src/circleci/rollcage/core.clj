@@ -25,19 +25,34 @@
                                        :root String
                                        :code_version (s/maybe String)}}})
 
+(def ^{:dynamic true
+       :doc
+       "The user affected by this event. Will be indexed by ID, username, and email.
+       People are stored in Rollbar keyed by ID. If you send a multiple different
+       usernames/emails for the same ID, the last received values will overwrite
+       earlier ones.
+
+       Keys:
+        :id (required) A string up to 40 characters identifying this user in your system.
+        :username (optional) A string up to 255 characters.
+        :email (optional) A string up to 255 characters."}
+  *person* {})
+
 (defn- deep-merge
   "Like merge, but merges maps recursively."
   [& maps]
   (apply merge-with deep-merge maps))
 
 (def ^:private Item (deep-merge (dissoc Client :result-fn :send-fn)
-                      {:data {:body {:trace_chain s/Any}
-                              :level String
-                              :timestamp s/Int
-                              :uuid UUID
-                              :custom s/Any ;; TODO verify custom
-                              :request {:url (s/maybe String)}}}))
-
+                                 :data {:body {:trace_chain s/Any}
+                                        :level String
+                                        :timestamp s/Int
+                                        :uuid UUID
+                                        :custom s/Any ;; TODO verify custom
+                                        :person {:id (s/maybe String)
+                                                 :email (s/maybe String)
+                                                 :username (s/maybe String)}
+                                        :request {:url (s/maybe String)}}}))
 
 (defn- guess-os []
   (System/getProperty "os.name"))
@@ -109,6 +124,15 @@
 (defn- ^UUID uuid []
   (UUID/randomUUID))
 
+(defn- limit
+  "Limit the string s to the given length.
+  If s is null, return null.
+  If s is a String, return a String with length no more than len."
+  [^String s len]
+  (if (and s (< len (count s)))
+    (subs s 0 len)
+    s))
+
 (s/defn ^:private make-rollbar :- Item
   "Build a map that matches the Rollbar API"
   [client :- Client
@@ -117,9 +141,12 @@
    url :- (s/maybe String)
    custom :- (s/maybe {s/Any s/Any})]
   ;; TODO: Pass request parameters through to here
-  ;; TODO: add person here
   (-> client
       (dissoc :result-fn :send-fn)
+      (assoc-in [:data :person] (-> *person*
+                                    (update :id limit 44)
+                                    (update :username limit 255)
+                                    (update :email limit 255)))
       (assoc-in [:data :body :trace_chain] (build-trace exception))
       (assoc-in [:data :level]             level)
       (assoc-in [:data :timestamp]         (timestamp))
@@ -173,7 +200,7 @@
                 send-item-http)
      :data {:environment (name environment)
             :platform    (name os)
-            :language    "Clojure"
+            :language    "java"
             :framework   "Ring"
             :notifier    {:name "Rollcage"}
             :server      {:host hostname
@@ -212,10 +239,10 @@
   The function will be passed 2 parameters:
   - The Throwable that was being reported
   - A map with the result of sending the exception to Rollbar. This map will
-    have the following keys:
-      :err     - an integer, 1 if there was an error sending the exception to
-                 Rollbar, 0 otherwise.
-      :message - A human-readable message describing the error.
+  have the following keys:
+  :err     - an integer, 1 if there was an error sending the exception to
+  Rollbar, 0 otherwise.
+  :message - A human-readable message describing the error.
 
   See https://rollbar.com/docs/api/items_post/
 
@@ -233,6 +260,7 @@
    (let [log-level (rollbar-to-logging level)
          params (merge params (ex-data exception))
          item (make-rollbar client level exception url params)
+         _ (println (pr-str item))
          result (try
                   (send-fn endpoint exception item)
                   (catch Exception e
