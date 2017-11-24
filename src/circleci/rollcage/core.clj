@@ -173,7 +173,7 @@
                 send-item-http)
      :data {:environment (name environment)
             :platform    (name os)
-            :language    "Clojure"
+            :language    "java"
             :framework   "Ring"
             :notifier    {:name "Rollcage"}
             :server      {:host hostname
