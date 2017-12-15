@@ -18,7 +18,7 @@
                  [clj-http "2.0.0"]
                  [prismatic/schema "0.4.3"]
                  [clj-stacktrace "0.2.8"]
-                 [org.clojure/tools.logging "0.3.1"]]
+                 [org.clojure/tools.logging "0.4.0"]]
   :plugins [[lein-codox "0.10.3"]
             [lein-cloverage "1.0.6"]
             [lein-shell "0.5.0"]
