@@ -156,7 +156,7 @@
             r (client/client token
                              {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"
                               :result-fn (fn [_ {:keys [exception]}]
-                                            (swap! delivery-exceptions conj exception))})]
+                                           (swap! delivery-exceptions conj exception))})]
         (with-redefs [http-client/post (fn [& args]
                                          (throw http-error))]
           (is (= {:err 1
@@ -202,6 +202,27 @@
         (is (zero? err))
         (is (true? skipped))
         (is (UUID/fromString uuid))))))
+
+(deftest it-can-send-people
+  (binding [client/*person* {:id "test_user"
+                             :email "test@example.com"
+                             :username "Test User"}]
+
+    (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
+          e (ex-info "with person" {})]
+      (testing "it can send items"
+        (let [r (client/client token {})
+              {err :err {uuid :uuid} :result} (client/warning r e)]
+          (is (zero? err))
+          (is (UUID/fromString uuid)))))))
+
+(deftest limiting-strings
+  (is (= "aaa" (#'client/limit "aaa" 5)))
+  (is (= "a" (#'client/limit "aaa" 1)))
+  (is (= "a" (#'client/limit "aaa" 2)))
+  (is (= "" (#'client/limit "aaa" 0)))
+  (is (= "aaa" (#'client/limit "aaa" 3)))
+  (is (nil? (#'client/limit nil 1))))
 
 (comment
   (run-tests))
