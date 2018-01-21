@@ -1,12 +1,27 @@
 (ns circleci.rollcage.ring-middleware
-  (:require [circleci.rollcage.core :as rollcage]))
+  (:require [circleci.rollcage.shell :as rollcage]))
 
-(defn wrap-rollbar [handler rollcage-client]
-  (if-not rollcage-client
-    handler
-    (fn [req]
-      (try
-        (handler req)
-        (catch Exception e
-          (rollcage/error rollcage-client e {:url (:uri req)})
-          (throw e))))))
+(def ^:dynamic *request-scope* (atom {}))
+
+(defn add-to-custom!
+  "Add custom data m into the data that will be sent to rollbar."
+  [custom]
+  (swap! *request-scope* update :custom merge custom))
+
+(defn add-to-request!
+  "Add request data m into the data that will be sent to rollbar."
+  [request]
+  (swap! *request-scope* update :request merge request))
+
+(defn add-to-user!
+  "Add user data m into the data that will be sent to rollbar."
+  [user]
+  (swap! *request-scope* update :user merge user))
+
+(defn wrap-rollbar [handler]
+  (fn [request]
+    (binding [*request-scope* (atom {:request {:url (:uri request)}})]
+      (handler request)
+      (catch Exception exception
+        (rollcage/error exception (deref *request-scope*))
+        (throw exception)))))
