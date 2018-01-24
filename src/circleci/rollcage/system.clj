@@ -1,7 +1,18 @@
 (ns circleci.rollcage.system
   "Functions that introspect the underlying system."
-  (:require [clojure.string :as string])
+  (:require [clojure.string :as string]
+    [clojure.java.io :as io]
+    [clojure.edn :as edn])
   (:import [java.net InetAddress UnknownHostException]))
+
+(defn version
+  "Get the version of the current leiningen project."
+  []
+    (some-> 
+      (io/resource "project.clj")
+      (slurp)
+      (edn/read-string)
+      (nth 2)))
 
 (defn os
   "Get the name of the current OS"
@@ -22,3 +33,6 @@
   "Get the current working directory."
   []
   (System/getProperty "user.dir"))
+
+
+  (version)

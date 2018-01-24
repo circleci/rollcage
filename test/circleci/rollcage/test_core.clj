@@ -182,7 +182,3 @@
         (is (zero? err))
         (is (true? skipped))
         (is (UUID/fromString uuid))))))
-
-;(comment
-  (run-tests)
-  ;)

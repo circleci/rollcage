@@ -1,5 +1,5 @@
 (ns circleci.rollcage.ring-middleware
-  (:require [circleci.rollcage.shell :as rollcage]))
+  (:require [circleci.rollcage :as rollcage]))
 
 (def ^:dynamic *request-scope* (atom {}))
 

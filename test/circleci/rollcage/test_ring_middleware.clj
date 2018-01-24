@@ -1,7 +1,7 @@
 (ns circleci.rollcage.test-ring-middleware
   (:require [bond.james :as bond]
             [circleci.rollcage.ring-middleware :as middleware]
-            [circleci.rollcage.shell :as rollcage]
+            [circleci.rollcage :as rollcage]
             [clojure.test :refer (deftest is testing)]))
 
 (deftest wrap-rollbar-works
@@ -18,9 +18,7 @@
                          (catch Exception e
                            e))]
             (is (= result error))
-            (is (= [[error {:url "/"}]]
+            (is (= [[error {:request {:url "/"}}]]
                    (->> rollcage/error
                         bond/calls
                         (map :args))))))))))
-
-(clojure.test/run-tests)

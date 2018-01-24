@@ -10,28 +10,10 @@
 
 (def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
-(comment def ^:private Client {:access-token (s/maybe String)
-                       :data {:environment (s/maybe String)
-                              :platform String
-                              :language String
-                              :framework String
-                              :notifier {:name String}
-                              :server {:host String
-                                       :root String
-                                       :code_version (s/maybe String)}}})
-
 (defn- deep-merge
   "Like merge, but merges maps recursively."
   [& maps]
   (apply merge-with deep-merge maps))
-
-(comment def ^:private Item (deep-merge Client
-                                {:data {:body {:trace_chain s/Any}
-                                        :level String
-                                        :timestamp s/Int
-                                        :uuid UUID
-                                        :custom s/Any ;; TODO verify custom
-                                        :request {:url (s/maybe String)}}}))
 
 (defn- rollbar-frame
   "Convert a clj-stacktrace stack frame element to the format that the Rollbar
@@ -125,15 +107,16 @@
   "Send a Rollbar item using the HTTP REST API.
   Return the result JSON parsed as a Map"
   [item]
-  ;; TODO - parse the JSON using clj-http.
-  (let [result (post endpoint
-                     {:body (json/generate-string item {:key-fn snake-case})
-                      :content-type :json})]
-    ;; Ensure that the result in valid JSON
-    (json/parse-string (:body result) true)
-    (log/log (rollbar-to-logging (:level item)) "Item <<uuid>> sent successfully")))
+  (let [{{:keys [err message]
+          {uuid :uuid} :result} :body} (post endpoint
+                                             {:body (json/generate-string item {:key-fn snake-case})
+                                              :content-type :json
+                                              :as :json})
+        message (format "Item sent successfully err=%s uuid=%s" err uuid)]
+    (println message)
+    (log/log (rollbar-to-logging (:level item)) message)))
 
-(defn- send [{:keys [access-token] :as item}]
+(defn ^{:dynamic true} *send* [{:keys [access-token] :as item}]
   (when-not (string/blank? access-token)
     (send-item-http item)))
 
@@ -141,7 +124,7 @@
   [^String level client ^Throwable exception options]
   (let [item (make-rollbar client level exception options)]
     (try
-      (send endpoint item)
+      (*send* item)
       nil
       (catch Exception e
         (log/error e "Failed to send exception to Rollbar")
