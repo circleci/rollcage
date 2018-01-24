@@ -36,5 +36,5 @@
   )))
     ;)
 
-;(println "hi")
-(it-can-report-uncaught-exceptions)
+(deftest it-can-install-handler
+  (rollcage/install-uncaught-exception-handler))

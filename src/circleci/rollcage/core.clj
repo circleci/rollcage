@@ -10,11 +10,6 @@
 
 (def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
-(defn- deep-merge
-  "Like merge, but merges maps recursively."
-  [& maps]
-  (apply merge-with deep-merge maps))
-
 (defn- rollbar-frame
   "Convert a clj-stacktrace stack frame element to the format that the Rollbar
   REST API expects."
@@ -82,14 +77,14 @@
   [client
    level
    exception
-   {:keys [custom request user]}]
+   {:keys [custom request person]}]
   (-> client
       (assoc-in [:data :body :trace_chain] (build-trace exception))
       (assoc-in [:data :level]             level)
       (assoc-in [:data :timestamp]         (timestamp))
       (assoc-in [:data :uuid]              (uuid))
       (assoc-in [:data :custom]            custom)
-      (assoc-in [:data :user]              user)
+      (assoc-in [:data :person]            person)
       (assoc-in [:data :request]           request)
       (update-in [:data :custom] merge (ex-data exception))))
 

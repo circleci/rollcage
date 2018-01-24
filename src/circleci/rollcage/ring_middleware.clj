@@ -1,27 +1,32 @@
 (ns circleci.rollcage.ring-middleware
-  (:require [circleci.rollcage :as rollcage]))
+  (:require
+   [clojure.string :as str]
+   [circleci.rollcage :as rollcage]))
 
 (def ^:dynamic *request-scope* (atom {}))
 
 (defn add-to-custom!
   "Add custom data m into the data that will be sent to rollbar."
-  [custom]
-  (swap! *request-scope* update :custom merge custom))
+  [fields]
+  (swap! *request-scope* update :custom merge fields))
 
 (defn add-to-request!
   "Add request data m into the data that will be sent to rollbar."
-  [request]
-  (swap! *request-scope* update :request merge request))
+  [fields]
+  (swap! *request-scope* update :request merge fields))
 
-(defn add-to-user!
+(defn add-to-person!
   "Add user data m into the data that will be sent to rollbar."
-  [user]
-  (swap! *request-scope* update :user merge user))
+  [fields]
+  (swap! *request-scope* update :person merge fields))
 
 (defn wrap-rollbar [handler]
-  (fn [request]
-    (binding [*request-scope* (atom {:request {:url (:uri request)}})]
-      (handler request)
-      (catch Exception exception
-        (rollcage/error exception (deref *request-scope*))
-        (throw exception)))))
+  (fn [{:keys [uri request-method remote-addr] :as request}]
+    (let [req {:url uri
+               :user-ip remote-addr
+               :method (some-> request-method (name) (str/upper-case))}]
+      (binding [*request-scope* (atom {:request req})]
+        (handler request)
+        (catch Exception exception
+          (rollcage/error exception (deref *request-scope*))
+          (throw exception))))))
