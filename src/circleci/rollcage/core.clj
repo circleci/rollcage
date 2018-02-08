@@ -13,6 +13,9 @@
 
 (def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
+(def ^:private http-conn-timeout 3000)
+(def ^:private http-socket-timeout 3000)
+
 (def ^:private Client {:access-token (s/maybe String)
                        :result-fn clojure.lang.IFn
                        :send-fn clojure.lang.IFn
@@ -155,6 +158,8 @@
                "Sending exception to Rollbar")
   (let [result (post endpoint
                      {:body (json/generate-string item {:key-fn snake-case})
+                      :conn-timeout http-conn-timeout
+                      :socket-timeout http-socket-timeout
                       :content-type :json})]
     (json/parse-string (:body result) true)))
 
