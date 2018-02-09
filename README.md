@@ -8,7 +8,7 @@ A Clojure client for [Rollbar](http://rollbar.com)
 Rollcage is available on [Clojars](https://clojars.org/circleci/rollcage). Add the following to your `project.clj`:
 
 ```Clojure
-[circleci/rollcage "1.0.131"]
+[circleci/rollcage "1.0.148"]
 ```
 
 You can send exceptions like this:
