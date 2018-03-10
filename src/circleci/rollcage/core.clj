@@ -255,13 +255,15 @@
           {:params {:thread-name (.getName thread)}}))
 
 (defn setup-uncaught-exception-handler
-  "Setup handler to report all uncaught exceptions
-  to rollbar."
-  [client]
-  (Thread/setDefaultUncaughtExceptionHandler
+  "Setup handler to report all uncaught exceptions to rollbar, and optionally
+  to an additional handler."
+  ([client] (setup-uncaught-exception-handler client (constantly nil)))
+  ([client handler]
+   (Thread/setDefaultUncaughtExceptionHandler
     (reify Thread$UncaughtExceptionHandler
       (uncaughtException [_ thread ex]
-        (report-uncaught-exception "critical" client ex thread)))))
+        (report-uncaught-exception "critical" client ex thread)
+        (handler thread ex))))))
 
 (def critical (partial notify "critical"))
 (def error    (partial notify "error"))
