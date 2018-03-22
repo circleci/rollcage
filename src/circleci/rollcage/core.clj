@@ -138,7 +138,8 @@
   {"critical" :fatal
    "error"    :error
    "warning"  :warn
-   "info"     :info})
+   "info"     :info
+   "debug"    :debug})
 
 (defn- send-item-null
   [^String endpoint ^Throwable exception {:keys [data] :as item}]
@@ -187,7 +188,7 @@
 
 (defn client
   "Create a client that can can be passed used to send notifications to Rollbar.
-  The following options can be set: 
+  The following options can be set:
 
   :os
   The name of the operating system running on the host. Defaults to the value
