@@ -2,11 +2,11 @@
   (:require
     [clojure.string :as string]
     [clojure.tools.logging :as logging]
-    [cheshire.core :as json]
     [schema.core :as s]
     [clj-http.client :refer (post)]
     [clj-stacktrace.core :refer (parse-trace-elem)]
-    [clj-stacktrace.repl :refer (method-str)])
+    [clj-stacktrace.repl :refer (method-str)]
+    [circleci.rollcage.json :as json])
   (:import
     [java.net InetAddress UnknownHostException]
     [java.util UUID]))
@@ -130,9 +130,6 @@
       (assoc-in [:data :custom]            custom)
       (assoc-in [:data :request :url]      url)))
 
-(defn- snake-case [kw]
-  (string/replace (name kw) "-" "_"))
-
 (def ^:private rollbar-to-logging
   "A look-up table to map from Rollbar severity levels to tools.logging levels"
   {"critical" :fatal
@@ -158,11 +155,11 @@
                exception
                "Sending exception to Rollbar")
   (let [result (post endpoint
-                     {:body (json/generate-string item {:key-fn snake-case})
+                     {:body (json/encode item)
                       :conn-timeout http-conn-timeout
                       :socket-timeout http-socket-timeout
                       :content-type :json})]
-    (json/parse-string (:body result) true)))
+    (json/decode (:body result))))
 
 (s/defn ^:private client* :- Client
   [access-token :- (s/maybe String)
