@@ -163,8 +163,9 @@
 
 (s/defn ^:private client* :- Client
   [access-token :- (s/maybe String)
-   {:keys [os hostname environment code-version file-root result-fn]
-    :or {environment "production"}}]
+   {:keys [os hostname environment framework code-version file-root result-fn]
+    :or {environment "production"
+         framework "Ring"}}]
   (let [os        (or os (guess-os))
         hostname  (or hostname (guess-hostname))
         file-root (or file-root (guess-file-root))
@@ -177,7 +178,7 @@
      :data {:environment (name environment)
             :platform    (name os)
             :language    "Clojure"
-            :framework   "Ring"
+            :framework   (name framework)
             :notifier    {:name "Rollcage"}
             :server      {:host hostname
                           :root file-root
