@@ -1,4 +1,4 @@
-(defproject circleci/rollcage
+(defproject k2n/rollcage
   (format "1.0.%s" (or (System/getenv "CIRCLE_BUILD_NUM")
                        "0-SNAPSHOT"))
   :description "A Clojure client for Rollbar"
