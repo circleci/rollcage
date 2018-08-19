@@ -1,4 +1,4 @@
-(defproject circleci/rollcage
+(defproject k2n/rollcage
   (format "1.0.%s" (or (System/getenv "CIRCLE_BUILD_NUM")
                        "0-SNAPSHOT"))
   :description "A Clojure client for Rollbar"
@@ -16,7 +16,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [cheshire "5.4.0"]
                  [clj-http "2.0.0"]
-                 [prismatic/schema "0.4.3"]
+                 [prismatic/schema "1.1.9"]
                  [clj-stacktrace "0.2.8"]
                  [org.clojure/tools.logging "0.4.0"]]
   :plugins [[lein-codox "0.10.3"]
