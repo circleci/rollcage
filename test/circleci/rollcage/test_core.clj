@@ -203,5 +203,16 @@
         (is (true? skipped))
         (is (UUID/fromString uuid))))))
 
+(deftest it-reports-ex-data
+  (let [p (promise)
+        client (assoc (client/client "access-token" {})
+                 :send-fn (fn [_ _ item]
+                            (deliver p item)
+                            {:err 0}))
+        _ (client/critical client (ex-info "outer" {:foo 1} (ex-info "inner" {:bar 2})))
+        result (deref p 0 :failed)]
+    (is (not (= result :failed)))
+    (is (= {:foo 1 :bar 2} (get-in result [:data :custom])))))
+
 (comment
   (run-tests))

@@ -6,7 +6,8 @@
     [clj-http.client :refer (post)]
     [clj-stacktrace.core :refer (parse-trace-elem)]
     [clj-stacktrace.repl :refer (method-str)]
-    [circleci.rollcage.json :as json])
+    [circleci.rollcage.json :as json]
+    [circleci.rollcage.throwables :as throwables])
   (:import
     [java.net InetAddress UnknownHostException]
     [java.util UUID]))
@@ -235,7 +236,7 @@
    (notify level client exception {}))
   ([^String level {:keys [result-fn  send-fn] :as client} ^Throwable exception {:keys [url params]}]
    (let [log-level (rollbar-to-logging level)
-         params (merge params (ex-data exception))
+         params (merge params (throwables/merged-ex-data exception))
          item (make-rollbar client level exception url params)
          result (try
                   (send-fn endpoint exception item)
