@@ -1,0 +1,63 @@
+version: 2.0
+
+workflows:
+  version: 2
+  test-and-deploy:
+    jobs:
+      - test
+      - deploy:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+
+jobs:
+  test:
+    docker:
+      - image: clojure:lein-2.8.1
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-jars-{{ checksum "project.clj" }}
+      - run:
+          name: Run the tests
+          command: |
+            mkdir -p /tmp/circleci-test-results/lein
+            lein test-out junit /tmp/circleci-test-results/lein/results.xml
+      - run:
+          name: Calculate code coverage
+          environment:
+            CLOVERAGE_VERSION: "1.0.7-SNAPSHOT"
+          command: lein cloverage --codecov
+      - save_cache:
+          key: v1-jars-{{ checksum "project.clj" }}
+          paths:
+            - /root/.m2
+      - run:
+          name: Upload code coverage
+          command: |
+            bash <(curl -s https://codecov.io/bash) --token=$CODECOV_TOKEN --file target/coverage/codecov.json
+      - store_test_results:
+          path: /tmp/circleci-test-results
+  deploy:
+    docker:
+      - image: clojure:lein-2.8.1
+    steps:
+      - checkout
+      - run:
+          name: Configure git
+          command: |
+            git config --global user.email "sayhi@circleci.com"
+            git config --global user.name "CircleCI builder"
+      - run:
+          name: Deploy JAR
+          command: lein deploy
+      - run:
+          name: Regenerate documentation
+          environment:
+            GIT_DEPLOY_DIR: "target/doc"
+          command: |
+            lein codox
+            scripts/docs_deploy.sh
