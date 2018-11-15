@@ -2,7 +2,8 @@
   (:require [bond.james :as bond]
             [circleci.rollcage.ring-middleware :as middleware]
             [circleci.rollcage.core :as rollcage]
-            [clojure.test :refer (deftest is testing)]))
+            [clojure.test :refer (deftest is testing)]
+            [speculative.instrument]))
 
 (deftest wrap-rollbar-works
   (let [error (ex-info "something bad happened" {})
