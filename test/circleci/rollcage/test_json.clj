@@ -1,7 +1,8 @@
 (ns circleci.rollcage.test-json
   (:require [clojure.test :refer (are deftest is)]
             [bond.james :as bond]
-            [circleci.rollcage.json :as json]))
+            [circleci.rollcage.json :as json]
+            [speculative.instrument]))
 
 (deftest encode-for-normal-things-works-without-calling-the-backstop
   (bond/with-spy [json/backstop-encoder]

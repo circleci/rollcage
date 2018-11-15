@@ -1,6 +1,7 @@
 (ns circleci.rollcage.test-throwables
   (:require [circleci.rollcage.throwables :as throwables]
-            [clojure.test :refer (deftest is testing)]))
+            [clojure.test :refer (deftest is testing)]
+            [speculative.instrument]))
 
 (deftest cause-seq-works
   (let [a (ex-info "a" {:name "a"})

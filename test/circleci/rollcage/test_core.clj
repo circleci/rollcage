@@ -8,7 +8,8 @@
             [clj-http.client :as http-client]
             [clojure.test.check.clojure-test :as ct :refer (defspec)]
             [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop])
+            [clojure.test.check.properties :as prop]
+            [speculative.instrument])
   (:import [java.util UUID]
            [clojure.lang ExceptionInfo]))
 
