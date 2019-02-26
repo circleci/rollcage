@@ -1,7 +1,6 @@
 (ns circleci.rollcage.test-core
   (:use clojure.test)
-  (:require [bond.james :as bond]
-            [schema.test :refer (validate-schemas)]
+  (:require [schema.test :refer (validate-schemas)]
             [clojure.test :refer :all]
             [clojure.string :as string]
             [circleci.rollcage.core :as client]
@@ -102,13 +101,16 @@
   (let [c (client/client "access-token")]
     (is (= "access-token" (:access-token c))))
   (let [c (client/client "access-token" {:os "DOS"
-                                         :environment "alpha"})]
+                                         :environment "alpha"
+                                         :block-fields [:foo :bar]})]
     (is (= "access-token" (:access-token c)))
     (is (= "alpha" (-> c :data :environment)))
-    (is (= "DOS" (-> c :data :platform))))
-
-  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Output of client\* does not match schema"
-                        (client/client "e" {:hostname 1}))))
+    (is (= "DOS" (-> c :data :platform)))
+    (is (= [:foo :bar] (:block-fields c))))
+  (is (thrown-with-msg? ExceptionInfo #"Output of client\* does not match schema"
+                        (client/client "e" {:hostname 1})))
+  (is (thrown-with-msg? ExceptionInfo #"Output of client\* does not match schema"
+                        (client/client "e" {:block-fields ["foo"]}))))
 
 (deftest environments-can-be-kw-or-string
   (letfn [(env [e] (-> (client/client "token" {:environment e}) :data :environment))]
@@ -168,11 +170,11 @@
                  @delivery-exceptions)))))))
 
 (deftest ^:integration it-can-send-ex-data
-  (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")
-        cause (Exception. "connection error")
-        e (ex-info "system error" {:key1 "one" :key2 "two"} cause)]
+  (let [token (System/getenv "ROLLBAR_ACCESS_TOKEN")]
     (testing "it can send items"
-      (let [r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
+      (let [cause (Exception. "connection error")
+            e (ex-info "system error" {:key1 "one" :key2 "two"} cause)
+            r (client/client token {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"})
             {err :err {uuid :uuid} :result} (client/warning r e)]
         (is (zero? err))
         (is (UUID/fromString uuid))))))
@@ -202,7 +204,7 @@
             {err :err skipped :skipped {uuid :uuid} :result} (client/warning r e)]
         (is (zero? err))
         (is (true? skipped))
-        (is (UUID/fromString uuid))))))
+        (is (and uuid (UUID/fromString uuid)))))))
 
 (deftest it-reports-ex-data
   (let [p (promise)
@@ -214,6 +216,38 @@
         result (deref p 0 :failed)]
     (is (not (= result :failed)))
     (is (= {:foo 1 :bar 2} (get-in result [:data :custom])))))
+
+(deftest it-scrubs-ex-data
+  (let [p (promise)
+        client (assoc (client/client "access-token" {:block-fields [:foo :other-foo]})
+                      :send-fn (fn [_ _ item]
+                                 (deliver p item)
+                                 {:err 0}))
+        _ (client/critical client (ex-info "outer" {:foo 1} (ex-info "inner" {:bar 2})))
+        result (deref p 0 :failed)]
+    (is (not (= result :failed)))
+    (is (= {:foo "*field removed*" :bar 2} (get-in result [:data :custom])))))
+
+(deftest scrub-works
+  (is (= {:first_name "*field removed*"}
+         (client/scrub {:first_name "john"} [:first-name])))
+
+  (is (= {:first_name "*field removed*" "last_name" "*field removed*"}
+         (client/scrub {:first_name "john" "last_name" "bobson"} [:first-name :last-name])))
+
+  (is (= {:first_name "john"}
+         (client/scrub {:first_name "john"} nil)))
+
+  (is (= {:first_name "john"}
+         (client/scrub {:first_name "john"} [])))
+
+  (is (= {:payment-profile "*field removed*"}
+         (client/scrub {:payment-profile {:first_name "john"}} [:payment-profile]))
+      "Will remove entire object")
+
+  (is (= {:first_name "*field removed*" (type "aaa") (type 90)}
+         (client/scrub {:first_name (type 24) (type "aaa") (type 90)} [:first-name]))
+      "Will not fail when keys or values cannot be JSON encoded"))
 
 (comment
   (run-tests))
