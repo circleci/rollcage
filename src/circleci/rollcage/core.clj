@@ -11,8 +11,7 @@
     [clojure.walk :as walk])
   (:import
    [java.net InetAddress UnknownHostException]
-   [java.util UUID]
-   (clojure.lang Keyword)))
+   [java.util UUID]))
 
 (def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
