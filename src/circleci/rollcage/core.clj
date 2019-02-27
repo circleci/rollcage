@@ -7,10 +7,12 @@
     [clj-stacktrace.core :refer (parse-trace-elem)]
     [clj-stacktrace.repl :refer (method-str)]
     [circleci.rollcage.json :as json]
-    [circleci.rollcage.throwables :as throwables])
+    [circleci.rollcage.throwables :as throwables]
+    [clojure.walk :as walk])
   (:import
-    [java.net InetAddress UnknownHostException]
-    [java.util UUID]))
+   [java.net InetAddress UnknownHostException]
+   [java.util UUID]
+   (clojure.lang Keyword)))
 
 (def ^:private endpoint "https://api.rollbar.com/api/1/item/")
 
@@ -18,6 +20,7 @@
 (def ^:private http-socket-timeout 3000)
 
 (def ^:private Client {:access-token (s/maybe String)
+                       :block-fields (s/maybe [s/Keyword])
                        :result-fn clojure.lang.IFn
                        :send-fn clojure.lang.IFn
                        :data {:environment (s/maybe String)
@@ -164,7 +167,7 @@
 
 (s/defn ^:private client* :- Client
   [access-token :- (s/maybe String)
-   {:keys [os hostname environment code-version file-root result-fn]
+   {:keys [os hostname environment code-version file-root result-fn block-fields]
     :or {environment "production"}}]
   (let [os        (or os (guess-os))
         hostname  (or hostname (guess-hostname))
@@ -172,17 +175,18 @@
         result-fn (or result-fn (constantly nil))]
     {:access-token access-token
      :result-fn result-fn
+     :block-fields block-fields
      :send-fn (if (string/blank? access-token)
                 send-item-null
                 send-item-http)
      :data {:environment (name environment)
-            :platform    (name os)
-            :language    "Clojure"
-            :framework   "Ring"
-            :notifier    {:name "Rollcage"}
-            :server      {:host hostname
-                          :root file-root
-                          :code_version code-version}}}))
+            :platform (name os)
+            :language "Clojure"
+            :framework "Ring"
+            :notifier {:name "Rollcage"}
+            :server {:host hostname
+                     :root file-root
+                     :code_version code-version}}}))
 
 (defn client
   "Create a client that can can be passed used to send notifications to Rollbar.
@@ -212,7 +216,7 @@
   There is no default value.
 
   :result-fn
-  An function that will be called after each exception is sent to Rollbar.
+  A function that will be called after each exception is sent to Rollbar.
   The function will be passed 2 parameters:
   - The Throwable that was being reported
   - A map with the result of sending the exception to Rollbar. This map will
@@ -220,6 +224,15 @@
       :err     - an integer, 1 if there was an error sending the exception to
                  Rollbar, 0 otherwise.
       :message - A human-readable message describing the error.
+
+  :block-fields
+  A list of fields to remove/scrub from the payload prior to sending to Rollbar
+  using kebab case keywords. Input can contain keys in any variation of kebab or
+  snake cased keywords or strings.
+  For example, given :first-name field the following keys will be automatically
+  removed from input:
+    :first-name :first_name \"first-name\" \"first_name\"
+  Example: [:first-name :last-name :address]
 
   See https://rollbar.com/docs/api/items_post/
 
@@ -230,13 +243,40 @@
   ([access-token options]
    (client* access-token options)))
 
+(defn- fields-to-scrub
+  [block-fields]
+  (-> block-fields
+      (concat (map json/snake-case block-fields))
+      (concat (map name block-fields))
+      (concat (map (comp keyword json/snake-case) block-fields))))
+
+(defn- scrub-map [a-map block-fields]
+  (reduce
+   (fn remove-field [acc field]
+     (if (get acc field)
+       (assoc acc field "*field removed*")
+       acc))
+   a-map
+   block-fields))
+
+(defn scrub [item block-fields]
+  (let [all-fields (fields-to-scrub block-fields)]
+    (if (seq all-fields)
+      (walk/postwalk
+       (fn [form]
+         (if (map? form)
+           (scrub-map form all-fields)
+           form))
+       item)
+      item)))
+
 (defn notify
   ([^String level client ^Throwable exception]
    (notify level client exception {}))
-  ([^String level {:keys [result-fn  send-fn] :as client} ^Throwable exception {:keys [url params]}]
-   (let [log-level (rollbar-to-logging level)
-         params (merge params (throwables/merged-ex-data exception))
-         item (make-rollbar client level exception url params)
+  ([^String level {:keys [result-fn send-fn block-fields] :as client} ^Throwable exception {:keys [url params]}]
+   (let [params (merge params (throwables/merged-ex-data exception))
+         scrubbed (scrub params block-fields)
+         item (make-rollbar client level exception url scrubbed)
          result (try
                   (send-fn endpoint exception item)
                   (catch Exception e
