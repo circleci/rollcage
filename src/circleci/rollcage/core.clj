@@ -1,14 +1,15 @@
 (ns circleci.rollcage.core
   (:require
-    [clojure.string :as string]
-    [clojure.tools.logging :as logging]
-    [schema.core :as s]
-    [clj-http.client :refer (post)]
-    [clj-stacktrace.core :refer (parse-trace-elem)]
-    [clj-stacktrace.repl :refer (method-str)]
-    [circleci.rollcage.json :as json]
-    [circleci.rollcage.throwables :as throwables]
-    [clojure.walk :as walk])
+   [clojure.string :as string]
+   [clojure.tools.logging :as logging]
+   [clojure.java.io :as io]
+   [schema.core :as s]
+   [clj-http.client :refer (post)]
+   [clj-stacktrace.core :refer (parse-trace-elem)]
+   [clj-stacktrace.repl :refer (method-str)]
+   [circleci.rollcage.json :as json]
+   [circleci.rollcage.throwables :as throwables]
+   [clojure.walk :as walk])
   (:import
    [java.net InetAddress UnknownHostException]
    [java.util UUID]))
@@ -58,13 +59,54 @@
 (defn- guess-file-root []
   (System/getProperty "user.dir"))
 
+(defn load-source-file
+  "Returns a vector of the lines of the given file."
+  [^String file-name]
+  (-> file-name
+      (io/resource)
+      (io/reader)
+      (line-seq)))
+
+(defn- source-file-name
+  [{:keys [file clojure] :as frame} ]
+  (if clojure
+    (-> (:ns frame)
+        (string/replace "-" "_")
+        (string/replace "." "/")
+        (str "." (last (string/split file #"\."))))
+    file))
+
+(defn- code-context
+  "Given a sequence of strings (the source code) and a 1-indexed line, return the
+  data that Rollbar expects to be able to render the source code on the error page."
+  [lines line]
+  (let [zline (dec line) ; line is 1-indexed, z-line is 0-indexed 
+        first-line (max 0 (- zline 3))
+        pre-count (min zline 3)]
+    {:code (nth lines zline)
+     :context {:pre (take pre-count (drop first-line lines))
+               :post (take 3 (drop line lines))}}))
+
+(defn- source-code-data
+  "The Rollbar API allows us to send the line of code that from the stack frame,
+  as well as the lines preceding and following the line."
+  [{:keys [line clojure] :as frame}]
+  (try
+    (when clojure
+      (let [file-name (source-file-name frame)]
+        (when-let [lines (load-source-file file-name)]
+          (code-context lines line))))
+    (catch Exception _
+      {})))
+
 (defn- rollbar-frame
   "Convert a clj-stacktrace stack frame element to the format that the Rollbar
   REST API expects."
   [{:keys [file line] :as frame}]
-  {:filename file
-   :lineno line
-   :method (method-str frame)})
+  (merge (source-code-data frame)
+         {:filename file
+          :lineno line
+          :method (method-str frame)}))
 
 (defn- drop-common-head
   "Return a vector containing a copy of ys with any common head with xs removed.
@@ -142,7 +184,7 @@
    "debug"    :debug})
 
 (defn- send-item-null
-  [^String endpoint ^Throwable exception {:keys [data] :as item}]
+  [^String _endpoint ^Throwable exception {:keys [data] :as _item}]
   (logging/log (rollbar-to-logging (:level data))
                exception
                "No Rollbar token configured. Not reporting exception.")

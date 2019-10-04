@@ -26,12 +26,12 @@
 
 (defspec can-drop-common-heads 1000
   (prop/for-all
-    [a (gen/list gen/int)
-     b (gen/list gen/int)]
-    (let [r (#'client/drop-common-head a b)]
-      (or (empty? a)
-          (empty? b)
-          (ends-with? b r)))))
+   [a (gen/list gen/int)
+    b (gen/list gen/int)]
+   (let [r (#'client/drop-common-head a b)]
+     (or (empty? a)
+         (empty? b)
+         (ends-with? b r)))))
 
 (deftest dropping-common-frames
   (let [exception [{:exception {:class "OuterClass" :message "Outer"}
@@ -63,7 +63,7 @@
 (deftest it-can-parse-exceptions
   (testing "Simple exceptions"
     (let [e (Exception. "test")
-          item (first (#'client/build-trace e)) ]
+          item (first (#'client/build-trace e))]
       (is (= "test" (-> item :exception :message)))
       (is (= "class java.lang.Exception" (-> item :exception :class)))
       (let [^String method (-> item :frames last :method)] (is (.startsWith method "circleci.rollcage")))
@@ -73,12 +73,12 @@
 
   (testing "a nasty triple nested exception"
     (let [e (is (thrown?
-                  java.util.concurrent.ExecutionException
-                  @(future
-                     (try
-                       (/ 0)
-                       (catch Exception e
-                         (throw (Exception. "middle" e)))))))
+                 java.util.concurrent.ExecutionException
+                 @(future
+                    (try
+                      (/ 0)
+                      (catch Exception e
+                        (throw (Exception. "middle" e)))))))
           item (#'client/build-trace e)
           cause (last item)]
 
@@ -120,8 +120,7 @@
 
 (deftest it-can-make-items
   (let [c (client/client "access-token" {})]
-    (is (= {:access-token "access-token"
-            }
+    (is (= {:access-token "access-token"}
            (select-keys (#'client/make-rollbar c "error" (Exception.) nil nil)
                         [:access-token])))))
 
@@ -159,7 +158,7 @@
             r (client/client token
                              {:code-version "9d95d17105b4e752c46ccf656aaefad5ace50699"
                               :result-fn (fn [_ {:keys [exception]}]
-                                            (swap! delivery-exceptions conj exception))})]
+                                           (swap! delivery-exceptions conj exception))})]
         (with-redefs [http-client/post (fn [& args]
                                          (throw http-error))]
           (is (= {:err 1
@@ -191,7 +190,7 @@
         result (deref p 0 :failed)]
     (is (zero? err))
     (is (not (= result :failed)))
-    (is (= "critical" (get-in result [:data :level])) )
+    (is (= "critical" (get-in result [:data :level])))
     (is (= "thread" (get-in result [:data :custom :thread-name])))))
 
 (deftest it-handles-no-access-token
@@ -209,9 +208,9 @@
 (deftest it-reports-ex-data
   (let [p (promise)
         client (assoc (client/client "access-token" {})
-                 :send-fn (fn [_ _ item]
-                            (deliver p item)
-                            {:err 0}))
+                      :send-fn (fn [_ _ item]
+                                 (deliver p item)
+                                 {:err 0}))
         _ (client/critical client (ex-info "outer" {:foo 1} (ex-info "inner" {:bar 2})))
         result (deref p 0 :failed)]
     (is (not (= result :failed)))
@@ -248,6 +247,31 @@
   (is (= {:first_name "*field removed*" (type "aaa") (type 90)}
          (client/scrub {:first_name (type 24) (type "aaa") (type 90)} [:first-name]))
       "Will not fail when keys or values cannot be JSON encoded"))
+
+(defn- mock-source [n]
+  (mapv #(str % ": line " %) (range 1 (inc n))))
+
+(deftest it-can-load-source
+  (testing "mock source is ok"
+    (is (= [] (mock-source 0)))
+    (is (= ["1: line 1"
+            "2: line 2"
+            "3: line 3"
+            "4: line 4"] (mock-source 4))))
+  (testing "at the start of a file"
+    (is (= {:code "1: line 1"
+            :context {:pre []
+                      :post ["2: line 2"
+                             "3: line 3"
+                             "4: line 4"]}}
+           (#'client/code-context (mock-source 14) 1))))
+  (testing "at the end of the file"
+    (is (= {:code "13: line 13"
+            :context {:pre ["10: line 10"
+                            "11: line 11"
+                            "12: line 12"]
+                      :post []}}
+           (#'client/code-context (mock-source 13) 13)))))
 
 (comment
   (run-tests))
