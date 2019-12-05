@@ -38,12 +38,12 @@
   (apply merge-with deep-merge maps))
 
 (def ^:private Item (deep-merge (dissoc Client :result-fn :send-fn)
-                      {:data {:body {:trace_chain s/Any}
-                              :level String
-                              :timestamp s/Int
-                              :uuid UUID
-                              :custom s/Any ;; TODO verify custom
-                              :request {:url (s/maybe String)}}}))
+                                {:data {:body {:trace_chain s/Any}
+                                        :level String
+                                        :timestamp s/Int
+                                        :uuid UUID
+                                        :custom s/Any ;; TODO verify custom
+                                        :request {:url (s/maybe String)}}}))
 
 
 (defn- guess-os []
@@ -68,7 +68,7 @@
       (line-seq)))
 
 (defn- source-file-name
-  [{:keys [file clojure] :as frame} ]
+  [{:keys [file clojure] :as frame}]
   (if clojure
     (-> (:ns frame)
         (string/replace "-" "_")
@@ -141,15 +141,15 @@
   Exception in the cause-chain."
   [^Throwable exception]
   (drop-common-substacks
-    (loop [exception exception
-           result []]
-      (if (nil? exception) result
-        (let [elem {:frames (reverse (map (comp rollbar-frame parse-trace-elem)
-                                          (.getStackTrace exception)))
-                    :exception {:class (-> exception class str)
-                                :message  (.getMessage exception)}}]
-          (recur (.getCause exception)
-                 (conj result elem)))))))
+   (loop [exception exception
+          result []]
+     (if (nil? exception) result
+         (let [elem {:frames (reverse (map (comp rollbar-frame parse-trace-elem)
+                                           (.getStackTrace exception)))
+                     :exception {:class (-> exception class str)
+                                 :message  (.getMessage exception)}}]
+           (recur (.getCause exception)
+                  (conj result elem)))))))
 
 (defn- ^int timestamp []
   (int (/ (System/currentTimeMillis) 1000)))
@@ -232,33 +232,25 @@
 (defn client
   "Create a client that can can be passed used to send notifications to Rollbar.
   The following options can be set:
-
-  :os
-  The name of the operating system running on the host. Defaults to the value
+  
+  - `:os` The name of the operating system running on the host. Defaults to the value
   of the `os.name` system property.
-
-  :hostname
-  The hostname of the host.
-
-  :file-root
-  The path on disk where the filenames in stack traces are relative to. Defaults
-  the current working directory, as reported by the `user.dir` system property.
-
-  :environment
-  The environment that the app is running is, for example `staging` or `dev`.
-  Defaults to `production`.
-
-  :code-version
-  A string, up to 40 characters, describing the version of the application code
-  Rollbar understands these formats:
-  - semantic version (i.e. '2.1.12')
-  - integer (i.e. '45')
-  - git SHA (i.e. '3da541559918a808c2402bba5012f6c60b27661c')
+  - `:hostname` The hostname of the host. You can usually ommit this key, the
+  default will be read from the `HOSTNAME` or `COMPUTERNAME` enviroment variables.
+  - `:file-root` The path on disk where the filenames in stack traces are relative
+  to. Defaults the current working directory, as reported by the `user.dir` system
+  property.
+  - `:environment` The environment that the app is running is, for example `staging`
+  or `dev`. Defaults to `production`.
+  - `:code-version` A string, up to 40 characters, describing the version of the
+  application code. Rollbar understands these formats:
+  -- semantic version (i.e. '2.1.12')
+  -- integer (i.e. '45')
+  -- git SHA (i.e. '3da541559918a808c2402bba5012f6c60b27661c')
   There is no default value.
 
-  :result-fn
-  A function that will be called after each exception is sent to Rollbar.
-  The function will be passed 2 parameters:
+  `:result-fn` (for advanced usage) a function that will be called after each
+  exception is sent to Rollbar. The function will be passed 2 parameters:
   - The Throwable that was being reported
   - A map with the result of sending the exception to Rollbar. This map will
     have the following keys:
@@ -266,13 +258,16 @@
                  Rollbar, 0 otherwise.
       :message - A human-readable message describing the error.
 
-  :block-fields
-  A list of fields to remove/scrub from the payload prior to sending to Rollbar
-  using kebab case keywords. Input can contain keys in any variation of kebab or
-  snake cased keywords or strings.
-  For example, given :first-name field the following keys will be automatically
-  removed from input:
-    :first-name :first_name \"first-name\" \"first_name\"
+  ```clojure
+  (fn [exception {:keys [err message]}]
+    (log/info exception \"Rollbar result: %d: %s\" err message))
+  ```
+
+  - `:block-fields` A list of fields to remove/scrub from the payload prior to
+  sending to Rollbar using kebab case keywords. Input can contain keys in any
+  variation of kebab or snake cased keywords or strings. For example, given
+  `:first-name` field the following keys will be automatically removed from input:
+  `:first-name`, `:first_name` `\"first-name\"` `\"first_name\"`
   Example: [:first-name :last-name :address]
 
   See https://rollbar.com/docs/api/items_post/
@@ -304,7 +299,7 @@
   (let [all-fields (fields-to-scrub block-fields)]
     (if (seq all-fields)
       (walk/postwalk
-       (fn [form]
+       (fn scrubber [form]
          (if (map? form)
            (scrub-map form all-fields)
            form))
@@ -312,6 +307,7 @@
       item)))
 
 (defn notify
+  "Report an exception to Rollbar."
   ([^String level client ^Throwable exception]
    (notify level client exception {}))
   ([^String level {:keys [result-fn send-fn block-fields] :as client} ^Throwable exception {:keys [url params]}]
@@ -330,14 +326,15 @@
      result)))
 
 (defn- report-uncaught-exception
-  [level client exception thread]
+  [level client exception ^Thread thread]
   (notify level client exception
           {:params {:thread-name (.getName thread)}}))
 
 (defn setup-uncaught-exception-handler
   "Setup handler to report all uncaught exceptions to rollbar, and optionally
   to an additional handler."
-  ([client] (setup-uncaught-exception-handler client (constantly nil)))
+  ([client]
+   (setup-uncaught-exception-handler client (constantly nil)))
   ([client handler]
    (Thread/setDefaultUncaughtExceptionHandler
     (reify Thread$UncaughtExceptionHandler
@@ -345,8 +342,27 @@
         (report-uncaught-exception "critical" client ex thread)
         (handler thread ex))))))
 
-(def critical (partial notify "critical"))
-(def error    (partial notify "error"))
-(def warning  (partial notify "warning"))
-(def info     (partial notify "info"))
-(def debug    (partial notify "debug"))
+(def critical
+  "Notify Rollbar of an exception with level `critical`.
+  See the [[notify]] function for more information."
+  (partial notify "critical"))
+
+(def error
+  "Notify Rollbar of an exception with level `error`.
+  See the [[notify]] function for more information."
+  (partial notify "error"))
+
+(def warning
+  "Notify Rollbar of an exception with level `warning`.
+  See the [[notify]] function for more information."
+  (partial notify "warning"))
+
+(def info
+  "Notify Rollbar of an exception with level `info`.
+  See the [[notify]] function for more information."
+  (partial notify "info"))
+
+(def debug
+  "Notify Rollbar of an exception with level `debug`.
+  See the [[notify]] function for more information."
+  (partial notify "debug"))

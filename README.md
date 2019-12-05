@@ -1,15 +1,28 @@
-# Rollcage [![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage) [![codecov.io](https://codecov.io/github/circleci/rollcage/coverage.svg?branch=master)](https://codecov.io/github/circleci/rollcage?branch=master)
+# Rollcage
+[![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage)
+[![cljdoc](https://cljdoc.org/badge/circleci/rollcage)](https://cljdoc.org/d/circleci/rollcage/CURRENT)
+[![codecov.io](https://codecov.io/github/circleci/rollcage/coverage.svg?branch=master)](https://codecov.io/github/circleci/rollcage?branch=master)
 
 A Clojure client for [Rollbar](http://rollbar.com)
 
 
-## Usage
+## Installation
 
-Rollcage is available on [Clojars](https://clojars.org/circleci/rollcage). Add the following to your `project.clj`:
+Rollcage is available on [Clojars](https://clojars.org/circleci/rollcage).
 
-```Clojure
-[circleci/rollcage "1.0.148"]
+### Leiningen/Boot
+
+```clojure
+[circleci/rollcage "1.0.203"]
 ```
+
+### Clojure CLI/deps.edn
+
+```clojure
+circleci/rollcage {:mvn/version "1.0.203"}
+```
+
+## Quickstart
 
 You can send exceptions like this:
 
@@ -22,7 +35,7 @@ user=> (try
   #_=>   (/ 0)
   #_=>   (catch Exception e
   #_=>     (rollcage/error r e)))
-{:err 0, :result {:id nil, :uuid "1cb0c8bf-3942-4553-a5c4-8adc5d55ed8f"}}
+{:err 0, :result {:id nil, :uuid "420cfa6e-40d1-431d-80ef-575520c40dd7"}}
 ```
 
 You can also setup handler for all UncaughtExceptions.
@@ -31,8 +44,12 @@ will be sent to Rollbar.
 
 user=> (rollcage/setup-uncaught-exception-handler r)
 
-See the full [API docs](https://circleci.github.io/rollcage/) for more
+See the full [API docs](https://cljdoc.org/d/circleci/rollcage/CURRENT) for more
 information.
+
+## Contributing
+
+If you would like to contibute to the project, please [log an issue](https://cljdoc.org/d/circleci/rollcage/CURRENT) to discuss the feature/bug before submitting a pull request.
 
 ## Testing
 

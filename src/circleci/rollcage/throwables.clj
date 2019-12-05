@@ -1,4 +1,5 @@
-(ns circleci.rollcage.throwables)
+(ns circleci.rollcage.throwables
+  {:no-doc true})
 
 (defn- cause-seq
   [^Throwable t]

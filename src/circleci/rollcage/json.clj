@@ -1,16 +1,12 @@
 (ns circleci.rollcage.json
-  (:require
-    [clojure.string :as string]
-    [clojure.walk :refer (postwalk)]
-    [cheshire.core :as json]
-    [cheshire.generate :as gen]
-    [cheshire.factory :as factory])
-  (:import
-   [java.io StringWriter
-            Writer]
-   [com.fasterxml.jackson.core JsonFactory
-                               JsonGenerator
-                               JsonGenerationException]))
+  {:no-doc true}
+  (:require [clojure.string :as string]
+            [clojure.walk :refer (postwalk)]
+            [cheshire.core :as json]
+            [cheshire.generate :as gen]
+            [cheshire.factory :as factory])
+  (:import [java.io StringWriter Writer]
+           [com.fasterxml.jackson.core JsonFactory JsonGenerationException]))
 
 (defn snake-case
   [kw]
@@ -25,18 +21,18 @@
             ^JsonFactory (or factory/*json-factory* factory/json-factory)
             ^Writer (StringWriter.))]
     (try
-     (gen/generate jg item factory/default-date-format nil snake-case)
-     item
-     (catch JsonGenerationException _
-       (str item)))))
+      (gen/generate jg item factory/default-date-format nil snake-case)
+      item
+      (catch JsonGenerationException _
+        (str item)))))
 
 (defn encode
   "Convert an arbitrary object into a JSON string."
   [item]
   (try
-   (json/generate-string item {:key-fn snake-case})
-   (catch JsonGenerationException _
-     (json/generate-string (postwalk backstop-encoder item) {:key-fn snake-case}))))
+    (json/generate-string item {:key-fn snake-case})
+    (catch JsonGenerationException _
+      (json/generate-string (postwalk backstop-encoder item) {:key-fn snake-case}))))
 
 (defn decode
   "Decode a JSON string into an object."
