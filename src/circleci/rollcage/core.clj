@@ -1,5 +1,6 @@
 (ns circleci.rollcage.core
   (:require
+   [clojure.core.memoize :as memo]
    [clojure.string :as string]
    [clojure.tools.logging :as logging]
    [clojure.java.io :as io]
@@ -99,7 +100,7 @@
     (catch Exception _
       {})))
 
-(defn- rollbar-frame
+(defn- rollbar-frame*
   "Convert a clj-stacktrace stack frame element to the format that the Rollbar
   REST API expects."
   [{:keys [file line] :as frame}]
@@ -107,6 +108,9 @@
          {:filename file
           :lineno line
           :method (method-str frame)}))
+
+(def ^:private rollbar-frame
+  (memo/lu rollbar-frame* :lu/threshold 1000))
 
 (defn- drop-common-head
   "Return a vector containing a copy of ys with any common head with xs removed.

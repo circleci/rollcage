@@ -18,6 +18,7 @@
                  [clj-http "2.0.0"]
                  [prismatic/schema "1.1.9"]
                  [clj-stacktrace "0.2.8"]
+                 [org.clojure/core.memoize "1.0.236"]
                  [org.clojure/tools.logging "0.4.0"]]
   :plugins [[lein-cloverage "1.0.6"]
             [lein-shell "0.5.0"]
