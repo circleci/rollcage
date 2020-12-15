@@ -7,11 +7,11 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :repositories [["releases" {:url "https://clojars.org/repo"
                               :username :env/clojars_username
-                              :password :env/clojars_password
+                              :password :env/clojars_token
                               :sign-releases false}]
                  ["snapshots" {:url "https://clojars.org/repo"
                                :username :env/clojars_username
-                               :password :env/clojars_password
+                               :password :env/clojars_token
                                :sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [cheshire "5.8.1"]
