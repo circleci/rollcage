@@ -346,27 +346,24 @@
         (report-uncaught-exception "critical" client ex thread)
         (handler thread ex))))))
 
-(def critical
-  "Notify Rollbar of an exception with level `critical`.
-  See the [[notify]] function for more information."
-  (partial notify "critical"))
+(defmacro deflevel
+  [level]
+  (let [level-str (str level)
+        docstring (str "Notify Rollbar of an exception with level `"
+                       level-str
+                       "`.\n  See the [[notify]] function for more information")]
+    `(do (def ~level (partial notify ~level-str))
+         (alter-meta! (var ~level) assoc :arglists '([~'client ~'exception]
+                                                     [{:keys [~'result-fn
+                                                              ~'send-fn
+                                                              ~'block-fields] :as ~'client}
+                                                      ~'exception
+                                                      {:keys [~'url ~'params]}]))
+         (alter-meta! (var ~level) assoc :doc ~docstring)
+         (var ~level))))
 
-(def error
-  "Notify Rollbar of an exception with level `error`.
-  See the [[notify]] function for more information."
-  (partial notify "error"))
-
-(def warning
-  "Notify Rollbar of an exception with level `warning`.
-  See the [[notify]] function for more information."
-  (partial notify "warning"))
-
-(def info
-  "Notify Rollbar of an exception with level `info`.
-  See the [[notify]] function for more information."
-  (partial notify "info"))
-
-(def debug
-  "Notify Rollbar of an exception with level `debug`.
-  See the [[notify]] function for more information."
-  (partial notify "debug"))
+(deflevel critical)
+(deflevel error)
+(deflevel warning)
+(deflevel info)
+(deflevel debug)
