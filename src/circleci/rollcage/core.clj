@@ -348,20 +348,11 @@
 
 (defmacro deflevel
   [level]
-  (let [level-str (str level)
-        docstring (str "Notify Rollbar of an exception with level `"
-                       level-str
-                       "`.\n  See the [[notify]] function for more information")
-        arglists  '([client exception]
-                    [{:keys [result-fn
-                             send-fn
-                             block-fields] :as client}
-                     exception
-                     {:keys [url params]}])]
-    `(do (def ~level (partial notify ~level-str))
-         (alter-meta! (var ~level) merge {:arglists (quote ~arglists)
-                                          :doc      ~docstring})
-         (var ~level))))
+  `(def ~(with-meta level
+           {:arglists (quote (-> #'notify meta :arglists))
+            :doc (str "Notify Rollbar of an exception with level `" level "`.\n  "
+                      "See the [[notify]] function for more information")})
+     (partial notify ~(str level))))
 
 (deflevel critical)
 (deflevel error)
