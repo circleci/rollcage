@@ -359,8 +359,8 @@
                      exception
                      {:keys [url params]}])]
     `(do (def ~level (partial notify ~level-str))
-         (alter-meta! (var ~level) assoc :arglists (quote ~arglists))
-         (alter-meta! (var ~level) assoc :doc ~docstring)
+         (alter-meta! (var ~level) merge {:arglists (quote ~arglists)
+                                          :dosstring ~docstring})
          (var ~level))))
 
 (deflevel critical)
