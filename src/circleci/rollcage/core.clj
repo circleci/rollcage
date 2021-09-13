@@ -360,7 +360,7 @@
                      {:keys [url params]}])]
     `(do (def ~level (partial notify ~level-str))
          (alter-meta! (var ~level) merge {:arglists (quote ~arglists)
-                                          :dosstring ~docstring})
+                                          :doc      ~docstring})
          (var ~level))))
 
 (deflevel critical)
