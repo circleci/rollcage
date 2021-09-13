@@ -81,7 +81,7 @@
   "Given a sequence of strings (the source code) and a 1-indexed line, return the
   data that Rollbar expects to be able to render the source code on the error page."
   [lines line]
-  (let [zline (dec line) ; line is 1-indexed, z-line is 0-indexed 
+  (let [zline (dec line) ; line is 1-indexed, z-line is 0-indexed
         first-line (max 0 (- zline 3))
         pre-count (min zline 3)]
     {:code (nth lines zline)
@@ -236,7 +236,7 @@
 (defn client
   "Create a client that can can be passed used to send notifications to Rollbar.
   The following options can be set:
-  
+
   - `:os` The name of the operating system running on the host. Defaults to the value
   of the `os.name` system property.
   - `:hostname` The hostname of the host. You can usually ommit this key, the
@@ -351,14 +351,15 @@
   (let [level-str (str level)
         docstring (str "Notify Rollbar of an exception with level `"
                        level-str
-                       "`.\n  See the [[notify]] function for more information")]
+                       "`.\n  See the [[notify]] function for more information")
+        arglists  '([client exception]
+                    [{:keys [result-fn
+                             send-fn
+                             block-fields] :as client}
+                     exception
+                     {:keys [url params]}])]
     `(do (def ~level (partial notify ~level-str))
-         (alter-meta! (var ~level) assoc :arglists '([~'client ~'exception]
-                                                     [{:keys [~'result-fn
-                                                              ~'send-fn
-                                                              ~'block-fields] :as ~'client}
-                                                      ~'exception
-                                                      {:keys [~'url ~'params]}]))
+         (alter-meta! (var ~level) assoc :arglists (quote ~arglists))
          (alter-meta! (var ~level) assoc :doc ~docstring)
          (var ~level))))
 
