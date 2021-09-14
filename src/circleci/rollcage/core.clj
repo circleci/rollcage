@@ -81,7 +81,7 @@
   "Given a sequence of strings (the source code) and a 1-indexed line, return the
   data that Rollbar expects to be able to render the source code on the error page."
   [lines line]
-  (let [zline (dec line) ; line is 1-indexed, z-line is 0-indexed 
+  (let [zline (dec line) ; line is 1-indexed, z-line is 0-indexed
         first-line (max 0 (- zline 3))
         pre-count (min zline 3)]
     {:code (nth lines zline)
@@ -236,7 +236,7 @@
 (defn client
   "Create a client that can can be passed used to send notifications to Rollbar.
   The following options can be set:
-  
+
   - `:os` The name of the operating system running on the host. Defaults to the value
   of the `os.name` system property.
   - `:hostname` The hostname of the host. You can usually ommit this key, the
@@ -346,27 +346,16 @@
         (report-uncaught-exception "critical" client ex thread)
         (handler thread ex))))))
 
-(def critical
-  "Notify Rollbar of an exception with level `critical`.
-  See the [[notify]] function for more information."
-  (partial notify "critical"))
+(defmacro deflevel
+  [level]
+  `(def ~(with-meta level
+           {:arglists (quote (-> #'notify meta :arglists))
+            :doc (str "Notify Rollbar of an exception with level `" level "`.\n  "
+                      "See the [[notify]] function for more information")})
+     (partial notify ~(str level))))
 
-(def error
-  "Notify Rollbar of an exception with level `error`.
-  See the [[notify]] function for more information."
-  (partial notify "error"))
-
-(def warning
-  "Notify Rollbar of an exception with level `warning`.
-  See the [[notify]] function for more information."
-  (partial notify "warning"))
-
-(def info
-  "Notify Rollbar of an exception with level `info`.
-  See the [[notify]] function for more information."
-  (partial notify "info"))
-
-(def debug
-  "Notify Rollbar of an exception with level `debug`.
-  See the [[notify]] function for more information."
-  (partial notify "debug"))
+(deflevel critical)
+(deflevel error)
+(deflevel warning)
+(deflevel info)
+(deflevel debug)
