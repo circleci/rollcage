@@ -31,7 +31,10 @@
                               :notifier {:name String}
                               :server {:host String
                                        :root String
-                                       :code_version (s/maybe String)}}})
+                                       :code_version (s/maybe String)}}
+                       (s/optional-key :person) {:id String
+                                                 (s/optional-key :email) String
+                                                 (s/optional-key :username) String}})
 
 (defn- deep-merge
   "Like merge, but merges maps recursively."
@@ -167,17 +170,22 @@
    level  :- String
    exception :- Throwable
    url :- (s/maybe String)
-   custom :- (s/maybe {s/Any s/Any})]
+   custom :- (s/maybe {s/Any s/Any})
+   & [person :- {:id String
+                 (s/optional-key :email) (s/maybe String)
+                 (s/optional-key :username) (s/maybe String)}]]
   ;; TODO: Pass request parameters through to here
-  ;; TODO: add person here
-  (-> client
-      (dissoc :result-fn :send-fn)
-      (assoc-in [:data :body :trace_chain] (build-trace exception))
-      (assoc-in [:data :level]             level)
-      (assoc-in [:data :timestamp]         (timestamp))
-      (assoc-in [:data :uuid]              (uuid))
-      (assoc-in [:data :custom]            custom)
-      (assoc-in [:data :request :url]      url)))
+  (let [item (-> client
+                 (dissoc :result-fn :send-fn)
+                 (assoc-in [:data :body :trace_chain] (build-trace exception))
+                 (assoc-in [:data :level]             level)
+                 (assoc-in [:data :timestamp]         (timestamp))
+                 (assoc-in [:data :uuid]              (uuid))
+                 (assoc-in [:data :custom]            custom)
+                 (assoc-in [:data :request :url]      url))]
+    (cond-> item
+      (some? person)
+      (assoc :person person))))
 
 (def ^:private rollbar-to-logging
   "A look-up table to map from Rollbar severity levels to tools.logging levels"
@@ -314,10 +322,10 @@
   "Report an exception to Rollbar."
   ([^String level client ^Throwable exception]
    (notify level client exception {}))
-  ([^String level {:keys [result-fn send-fn block-fields] :as client} ^Throwable exception {:keys [url params]}]
+  ([^String level {:keys [result-fn send-fn block-fields] :as client} ^Throwable exception {:keys [url params person]}]
    (let [params (merge params (throwables/merged-ex-data exception))
          scrubbed (scrub params block-fields)
-         item (make-rollbar client level exception url scrubbed)
+         item (make-rollbar client level exception url scrubbed person)
          result (try
                   (send-fn endpoint exception item)
                   (catch Exception e

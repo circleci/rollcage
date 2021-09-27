@@ -124,6 +124,12 @@
            (select-keys (#'client/make-rollbar c "error" (Exception.) nil nil)
                         [:access-token])))))
 
+(deftest it-can-track-person
+  (let [c (client/client "access-token" {})]
+    (is (= {:person {:id "person"}}
+           (select-keys (#'client/make-rollbar c "error" (Exception.) nil nil {:id "person"})
+                        [:person])))))
+
 (deftest ^:integration test-environment-is-setup
   (is (not (string/blank? (System/getenv "ROLLBAR_ACCESS_TOKEN")))
       "You must specify a ROLLBAR_ACCESS_TOKEN with POST credentials"))
