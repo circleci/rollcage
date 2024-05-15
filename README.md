@@ -1,7 +1,8 @@
 # Rollcage
 [![Circle CI](https://circleci.com/gh/circleci/rollcage.svg?style=svg)](https://circleci.com/gh/circleci/rollcage)
 [![cljdoc](https://cljdoc.org/badge/circleci/rollcage)](https://cljdoc.org/d/circleci/rollcage/CURRENT)
-[![codecov.io](https://codecov.io/github/circleci/rollcage/coverage.svg?branch=master)](https://codecov.io/github/circleci/rollcage?branch=master)
+[![Clojars Project](https://img.shields.io/clojars/v/circleci/rollcage.svg)](https://clojars.org/circleci/rollcage)
+
 
 A Clojure client for [Rollbar](http://rollbar.com)
 

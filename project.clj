@@ -20,8 +20,7 @@
                  [clj-stacktrace "0.2.8"]
                  [org.clojure/core.memoize "1.0.236"]
                  [org.clojure/tools.logging "0.5.0"]]
-  :plugins [[lein-cloverage "1.0.6"]
-            [lein-shell "0.5.0"]
+  :plugins [[lein-shell "0.5.0"]
             [lein-pprint "1.1.1"]
             [lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
   :global-vars {*warn-on-reflection* true}
