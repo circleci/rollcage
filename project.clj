@@ -16,7 +16,7 @@
   :dependencies [[org.clojure/clojure "1.11.2"]
                  [cheshire "5.13.0"]
                  [clj-http "3.13.0"]
-                 [prismatic/schema "1.1.12"]
+                 [prismatic/schema "1.4.1"]
                  [clj-stacktrace "0.2.8"]
                  [org.clojure/core.memoize "1.0.236"]
                  [org.clojure/tools.logging "0.5.0"]]
