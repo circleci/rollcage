@@ -22,6 +22,7 @@
 
 (def ^:private Client {:access-token (s/maybe String)
                        :block-fields (s/maybe [s/Keyword])
+                       :indexed-ex-data (s/maybe (s/cond-pre s/Bool s/Str s/Keyword s/Num))
                        :result-fn clojure.lang.IFn
                        :send-fn clojure.lang.IFn
                        :data {:environment (s/maybe String)
@@ -212,7 +213,7 @@
 
 (s/defn ^:private client* :- Client
   [access-token :- (s/maybe String)
-   {:keys [os hostname environment code-version file-root result-fn block-fields]
+   {:keys [os hostname environment code-version file-root result-fn block-fields indexed-ex-data]
     :or {environment "production"}}]
   (let [os        (or os (guess-os))
         hostname  (or hostname (guess-hostname))
@@ -221,6 +222,7 @@
     {:access-token access-token
      :result-fn result-fn
      :block-fields block-fields
+     :indexed-ex-data indexed-ex-data
      :send-fn (if (string/blank? access-token)
                 send-item-null
                 send-item-http)
@@ -252,6 +254,24 @@
   -- integer (i.e. '45')
   -- git SHA (i.e. '3da541559918a808c2402bba5012f6c60b27661c')
   There is no default value.
+
+  `:indexed-ex-data` Tells rollcage to send nested exception's
+  `ex-data` under an indexed numeric level. It can be also a
+  string used instead of the \"__exception\" keys.
+
+  ```clojure
+  (ex-info \"Second error\" {:bar 3} (ex-info \"First error\" {:foo 1 :bar 2}))
+  ```
+
+  Sending the previous exception will generate the following params:
+
+  ```
+  custom.0.__exception      First error
+  custom.0.foo              1
+  custom.0.bar              2
+  custom.1.__exception      Second error
+  custom.1.bar              3
+  ```
 
   `:result-fn` (for advanced usage) a function that will be called after each
   exception is sent to Rollbar. The function will be passed 2 parameters:
@@ -315,7 +335,7 @@
   ([^String level client ^Throwable exception]
    (notify level client exception {}))
   ([^String level {:keys [result-fn send-fn block-fields] :as client} ^Throwable exception {:keys [url params]}]
-   (let [params (merge params (throwables/merged-ex-data exception))
+   (let [params (merge params (throwables/merged-ex-data client exception))
          scrubbed (scrub params block-fields)
          item (make-rollbar client level exception url scrubbed)
          result (try
