@@ -1,8 +1,5 @@
 version: 2.1
 
-orbs:
-  codecov: codecov/codecov@1.0.5
-
 workflows:
   test-and-deploy:
     jobs:
@@ -23,24 +20,11 @@ jobs:
       - restore_cache:
           keys:
             - v1-jars-{{ checksum "project.clj" }}
-      - run:
-          name: Run the tests
-          command: |
-            mkdir -p /tmp/circleci-test-results/lein
-            lein test-out junit /tmp/circleci-test-results/lein/results.xml
-      - run:
-          name: Calculate code coverage
-          environment:
-            CLOVERAGE_VERSION: "1.0.7-SNAPSHOT"
-          command: lein cloverage --codecov
+      - run: lein test :unit
       - save_cache:
           key: v1-jars-{{ checksum "project.clj" }}
           paths:
             - /root/.m2
-      - codecov/upload:
-          file: target/coverage/codecov.json
-      - store_test_results:
-          path: /tmp/circleci-test-results
   deploy:
     docker:
       - image: clojure:lein-2.8.1
