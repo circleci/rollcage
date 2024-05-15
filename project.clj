@@ -21,7 +21,7 @@
                  [org.clojure/core.memoize "1.0.236"]
                  [org.clojure/tools.logging "0.5.0"]]
   :plugins [[lein-shell "0.5.0"]
-            [lein-pprint "1.1.1"]
+            [lein-pprint "1.3.2"]
             [lein-test-out "0.3.1" :exclusions [org.clojure/clojure]]]
   :global-vars {*warn-on-reflection* true}
   :profiles {:dev {:dependencies [[org.clojure/test.check "1.1.1"]
