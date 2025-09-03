@@ -14,7 +14,7 @@
                                :password :env/clojars_token
                                :sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.11.2"]
-                 [cheshire "6.0.0"]
+                 [cheshire "6.1.0"]
                  [clj-http "3.13.1"]
                  [prismatic/schema "1.4.1"]
                  [clj-stacktrace "0.2.8"]
